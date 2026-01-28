@@ -2,6 +2,8 @@
 
 Telegram üzerinden otomatik gift card satışı yapan bir bot. Kripto para ile ödeme alıp, kullanıcılara gift card satar.
 
+**🐧 Ubuntu/cPanel-WHM Kullanıcıları:** Ubuntu ve cPanel/WHM kurulu sunucular için özel kurulum talimatları için [UBUNTU_CPANEL_INSTALL.md](UBUNTU_CPANEL_INSTALL.md) dosyasına bakın.
+
 **🪟 Windows Kullanıcıları:** Windows için özel kurulum talimatları için [WINDOWS.md](WINDOWS.md) dosyasına bakın.
 
 ## Özellikler
@@ -14,8 +16,18 @@ Telegram üzerinden otomatik gift card satışı yapan bir bot. Kripto para ile 
 - 🔒 SQLite veritabanı ile güvenli veri saklama
 - 🤖 Otomatik gift card görseli gönderimi
 - 🪟 Windows desteği (batch dosyaları ile)
+- 🐧 Ubuntu/cPanel-WHM desteği
 
 ## Kurulum
+
+### Platform Seçimi
+
+Kurulum için işletim sisteminize göre uygun rehberi seçin:
+
+- **🐧 Ubuntu + cPanel/WHM Sunucu**: [UBUNTU_CPANEL_INSTALL.md](UBUNTU_CPANEL_INSTALL.md) - Detaylı Ubuntu ve cPanel/WHM kurulum rehberi
+- **🪟 Windows**: [WINDOWS.md](WINDOWS.md) - Windows özel kurulum rehberi
+- **🐧 Genel Linux/Mac**: Aşağıdaki genel talimatları takip edin
+- **🚀 Gelişmiş Kurulum**: [DEPLOYMENT.md](DEPLOYMENT.md) - Docker, systemd ve diğer seçenekler
 
 ### 1. Gereksinimler
 
