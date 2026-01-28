@@ -286,7 +286,7 @@ cp bot_database.db backups/bot_database_$(date +%Y%m%d).db
 
 **Error: ModuleNotFoundError: No module named 'telegram'**
 ```bash
-pip3 install python-telegram-bot==20.7
+pip3 install python-telegram-bot==21.9
 ```
 
 **Error: telegram.error.InvalidToken**

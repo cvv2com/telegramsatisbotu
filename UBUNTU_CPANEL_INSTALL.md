@@ -105,6 +105,13 @@ cd telegramsatisbotu
 
 **ÖNEMLİ**: cPanel ortamında mutlaka virtual environment kullanın!
 
+**⚠️ DİKKAT: Root olarak pip install yapmayın!**
+Virtual environment kullanmadan sistem genelinde paket yüklemek:
+- Sistem paket yöneticisiyle çakışmalara neden olur
+- İzin sorunlarına yol açabilir
+- Farklı projelerin bağımlılıklarını karıştırır
+- Güvenlik riski oluşturur
+
 ```bash
 # Virtual environment oluştur
 python3 -m venv venv
@@ -125,7 +132,7 @@ pip install -r requirements.txt
 
 Başarılı kurulum sonrası şunu görmelisiniz:
 ```
-Successfully installed python-telegram-bot-20.7 ...
+Successfully installed python-telegram-bot-21.9 ...
 ```
 
 ## ⚙️ Adım 4: Bot Konfigürasyonu
