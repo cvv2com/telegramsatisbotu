@@ -85,6 +85,22 @@ def init_db():
         )
     ''')
     
+    # Gift card satın alımları tablosu
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS gift_card_purchases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            card_id TEXT,
+            card_name TEXT,
+            card_number TEXT,
+            exp_date TEXT,
+            pin TEXT,
+            amount REAL,
+            purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (user_id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -364,37 +380,93 @@ async def process_gift_card_purchase(query, user_id: int, card_id: str):
         f"{card_info['name']} satın alındı"
     )
     
-    # Gift card görselini gönder
+    # Gift card bilgilerini veritabanına kaydet
+    conn = sqlite3.connect('bot_database.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO gift_card_purchases 
+        (user_id, card_id, card_name, card_number, exp_date, pin, amount)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        user_id,
+        card_id,
+        card_info['name'],
+        card_info.get('card_number', 'N/A'),
+        card_info.get('exp_date', 'N/A'),
+        card_info.get('pin', 'N/A'),
+        card_info['amount']
+    ))
+    conn.commit()
+    conn.close()
+    
+    # Gift card bilgilerini hazırla
     keyboard = [[InlineKeyboardButton("🏠 Ana Menü", callback_data='main_menu')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
+    # Caption mesajı oluştur
+    caption = (
+        f"✅ Satın Alma Başarılı!\n\n"
+        f"🎁 {card_info['name']}\n"
+        f"💰 Tutar: ${card_info['amount']:.2f}\n"
+    )
+    
+    # Kart bilgilerini ekle (varsa)
+    if card_info.get('card_number'):
+        caption += f"\n💳 Kart Numarası: `{card_info['card_number']}`\n"
+    if card_info.get('exp_date'):
+        caption += f"📅 Son Kullanma Tarihi: {card_info['exp_date']}\n"
+    if card_info.get('pin'):
+        caption += f"🔐 PIN: `{card_info['pin']}`\n"
+    
+    caption += f"\n📊 Kalan Bakiye: ${get_user_balance(user_id):.2f}\n"
+    caption += f"\nİyi alışverişler!"
+    
+    # Önce front image'i gönder
+    has_images = False
+    
     try:
-        # Gift card görseli gönder (use context manager for proper file handling)
-        with open(card_info['image_path'], 'rb') as photo_file:
-            await query.message.reply_photo(
-                photo=photo_file,
-                caption=(
-                    f"✅ Satın Alma Başarılı!\n\n"
-                    f"🎁 {card_info['name']}\n"
-                    f"💰 Tutar: ${card_info['amount']:.2f}\n"
-                    f"📊 Kalan Bakiye: ${get_user_balance(user_id):.2f}\n\n"
-                    f"Gift card bilgileriniz yukarıdadır.\n"
-                    f"İyi alışverişler!"
-                ),
-                reply_markup=reply_markup
-            )
+        # Ön yüz görseli (image_front veya image_path)
+        front_path = card_info.get('image_front') or card_info.get('image_path')
+        
+        if front_path:
+            try:
+                with open(front_path, 'rb') as photo_file:
+                    await query.message.reply_photo(
+                        photo=photo_file,
+                        caption=caption,
+                        parse_mode='Markdown',
+                        reply_markup=reply_markup
+                    )
+                has_images = True
+            except FileNotFoundError:
+                logger.warning(f"Front image not found: {front_path}")
+        
+        # Arka yüz görseli (varsa)
+        back_path = card_info.get('image_back')
+        if back_path:
+            try:
+                with open(back_path, 'rb') as photo_file:
+                    await query.message.reply_photo(
+                        photo=photo_file,
+                        caption="🔙 Gift Card Arka Yüz",
+                        reply_markup=reply_markup
+                    )
+            except FileNotFoundError:
+                logger.warning(f"Back image not found: {back_path}")
+        
         await query.delete_message()
-    except FileNotFoundError:
-        # Eğer görsel yoksa sadece metin gönder
+        
+    except Exception as e:
+        logger.error(f"Error sending gift card images: {e}")
+        has_images = False
+    
+    # Eğer hiç görsel gönderilemedi ise sadece metin gönder
+    if not has_images:
         await query.edit_message_text(
-            f"✅ Satın Alma Başarılı!\n\n"
-            f"🎁 {card_info['name']}\n"
-            f"💰 Tutar: ${card_info['amount']:.2f}\n"
-            f"📊 Kalan Bakiye: ${get_user_balance(user_id):.2f}\n\n"
-            f"⚠️ Gift card görseli bulunamadı.\n"
-            f"Lütfen destek ekibiyle iletişime geçin.\n\n"
-            f"Kod: GIFTCARD-{card_id.upper()}",
-            reply_markup=reply_markup
+            caption + f"\n\n⚠️ Gift card görselleri bulunamadı.\n"
+            f"Lütfen destek ekibiyle iletişime geçin.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
         )
 
 async def show_main_menu(query):
