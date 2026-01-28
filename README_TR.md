@@ -8,15 +8,27 @@ Telegram üzerinden otomatik gift card satışı yapan bir bot. Kripto para ile 
 
 ## Özellikler
 
+### Kullanıcı Özellikleri
 - 🎉 `/start` komutu ile karşılama ve ana menü
 - 💰 Bakiye kontrolü (yeni kullanıcılar 0 bakiye ile başlar)
 - 💎 Kripto para ile bakiye yükleme (BTC, ETH, USDT, LTC)
 - 🎁 Gift card satın alma (Mastercard, Visa, Amazon, Steam, Google Play)
+- 🎟️ Kupon kodu kullanarak indirim kazanma
 - 📊 İşlem geçmişi
 - 🔒 SQLite veritabanı ile güvenli veri saklama
 - 🤖 Otomatik gift card görseli gönderimi
+
+### Yönetici Özellikleri
+- 📤 **Toplu Ürün İçe Aktarma** - CSV veya JSON dosyası ile yüzlerce ürünü tek seferde ekleyin
+- 🎟️ **Kupon Yönetimi** - `/addcoupon` komutu ile indirim kuponu oluşturun
+- 👥 Kullanıcı yönetimi (admin.py ile)
+- 💰 Manuel bakiye yükleme
+- 📈 Satış istatistikleri
+
+### Platform Desteği
 - 🪟 Windows desteği (batch dosyaları ile)
 - 🐧 Ubuntu/cPanel-WHM desteği
+- 🐧 Genel Linux/Mac desteği
 
 ## Kurulum
 
@@ -119,9 +131,97 @@ python bot.py
 
 ### Admin İşlemleri
 
+#### Yönetici Kimliği Ekleme
+
+`config.py` dosyasında admin kullanıcı ID'lerini belirtin:
+
+```python
+# Admin User IDs (Telegram user ID'leri)
+# Kendi ID'nizi öğrenmek için @userinfobot ile konuşun
+ADMIN_IDS = [123456789, 987654321]
+```
+
+#### Toplu Ürün İçe Aktarma
+
+Yüzlerce ürünü tek seferde eklemek için CSV veya JSON dosyası kullanın.
+
+**1. `/import` komutu ile başlatın:**
+```
+/import
+```
+
+**2. CSV veya JSON dosyası gönderin:**
+
+**CSV Format:**
+```csv
+name,description,price,category,code,stock
+Netflix 10$,1 Month,10,Entertainment,NF-123,5
+Steam 20$,Steam Wallet,20,Gaming,ST-456,10
+Amazon 50$,Gift Card,50,Shopping,AMZ-789,3
+```
+
+**JSON Format:**
+```json
+[
+  {
+    "name": "Netflix 10$",
+    "description": "1 Month",
+    "price": 10,
+    "category": "Entertainment",
+    "code": "NF-123",
+    "stock": 5
+  },
+  {
+    "name": "Steam 20$",
+    "description": "Steam Wallet",
+    "price": 20,
+    "category": "Gaming",
+    "code": "ST-456",
+    "stock": 10
+  }
+]
+```
+
+#### Kupon Oluşturma
+
+İndirim kuponu oluşturmak için `/addcoupon` komutunu kullanın.
+
+**Komut Formatı:**
+```
+/addcoupon <code> <type> <value> [min_purchase] [max_uses] [expiry_days]
+```
+
+**Parametreler:**
+- `code`: Kupon kodu (örn: SUMMER2024)
+- `type`: İndirim tipi (`percent` veya `fixed`)
+- `value`: İndirim değeri (yüzde veya sabit tutar)
+- `min_purchase`: Minimum alış tutarı (opsiyonel, varsayılan: 0)
+- `max_uses`: Maksimum kullanım sayısı (opsiyonel, varsayılan: sınırsız)
+- `expiry_days`: Geçerlilik süresi gün olarak (opsiyonel, varsayılan: 30)
+
+**Örnekler:**
+
+```bash
+# %20 indirim kuponu, min 10$, max 100 kullanım, 30 gün geçerli
+/addcoupon WELCOME20 percent 20 10 100 30
+
+# 10$ sabit indirim, min 50$, sınırsız kullanım, 60 gün geçerli
+/addcoupon SAVE10 fixed 10 50 -1 60
+
+# %15 indirim, minimum alış yok, 50 kez kullanılabilir
+/addcoupon SPECIAL15 percent 15 0 50
+```
+
 #### Manuel Bakiye Yükleme
 
-Bir kullanıcıya manuel olarak bakiye yüklemek için SQLite veritabanını kullanabilirsiniz:
+`admin.py` scriptini kullanın:
+
+```bash
+# Kullanıcıya $100 ekle
+python admin.py add 123456789 100.00
+```
+
+Veya doğrudan SQL kullanarak:
 
 ```python
 import sqlite3
@@ -162,6 +262,48 @@ conn.close()
 - `amount`: İşlem tutarı
 - `description`: İşlem açıklaması
 - `created_at`: İşlem tarihi
+
+### Gift Card Purchases Tablosu
+- `id`: Satın alma ID
+- `user_id`: Kullanıcı ID
+- `card_id`: Kart ID
+- `card_name`: Kart adı
+- `card_number`: Kart numarası
+- `exp_date`: Son kullanma tarihi
+- `pin`: PIN kodu
+- `amount`: Tutar
+- `purchased_at`: Satın alma tarihi
+
+### Products Tablosu (Yeni)
+- `id`: Ürün ID
+- `name`: Ürün adı
+- `description`: Açıklama
+- `price`: Fiyat
+- `category`: Kategori
+- `code`: Ürün kodu (UNIQUE)
+- `stock`: Stok miktarı
+- `created_at`: Oluşturma tarihi
+- `updated_at`: Güncelleme tarihi
+
+### Coupons Tablosu (Yeni)
+- `id`: Kupon ID
+- `code`: Kupon kodu (UNIQUE)
+- `discount_type`: İndirim tipi (percent/fixed)
+- `discount_value`: İndirim değeri
+- `min_purchase`: Minimum alış tutarı
+- `max_uses`: Maksimum kullanım sayısı
+- `used_count`: Kullanım sayısı
+- `expiry_date`: Son kullanma tarihi
+- `active`: Aktif durumu
+- `created_at`: Oluşturma tarihi
+
+### Coupon Usage Tablosu (Yeni)
+- `id`: Kullanım ID
+- `coupon_id`: Kupon ID
+- `user_id`: Kullanıcı ID
+- `discount_amount`: İndirim tutarı
+- `used_at`: Kullanım tarihi
+
 
 ## Güvenlik Notları
 

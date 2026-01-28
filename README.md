@@ -10,15 +10,27 @@ An automated Telegram bot for selling gift cards with cryptocurrency payments.
 
 ## Features
 
+### User Features
 - 🎉 `/start` command with welcome message and main menu
 - 💰 Balance checking (new users start with $0 balance)
 - 💎 Cryptocurrency payment support (BTC, ETH, USDT, LTC)
 - 🎁 Gift card purchases (Mastercard, Visa, Amazon, Steam, Google Play)
+- 🎟️ Coupon code support for discounts
 - 📊 Transaction history tracking
 - 🔒 Secure data storage with SQLite database
 - 🤖 Automatic gift card image delivery
+
+### Admin Features
+- 📤 **Bulk Product Import** - Import hundreds of products at once via CSV or JSON files
+- 🎟️ **Coupon Management** - Create discount coupons with `/addcoupon` command
+- 👥 User management (via admin.py)
+- 💰 Manual balance loading
+- 📈 Sales statistics
+
+### Platform Support
 - 🪟 Windows support with batch files
 - 🐧 Ubuntu/cPanel-WHM support
+- 🐧 Generic Linux/Mac support
 
 ## Quick Start
 
@@ -108,6 +120,89 @@ python bot.py
    - Gift card image is sent to you
 
 ### Admin Operations
+
+#### Setting Up Admin Access
+
+Add admin user IDs in `config.py`:
+
+```python
+# Admin User IDs (Telegram user IDs)
+# Get your ID by messaging @userinfobot on Telegram
+ADMIN_IDS = [123456789, 987654321]
+```
+
+#### Bulk Product Import
+
+Import hundreds of products at once using CSV or JSON files.
+
+**1. Start with `/import` command:**
+```
+/import
+```
+
+**2. Send a CSV or JSON file:**
+
+**CSV Format:**
+```csv
+name,description,price,category,code,stock
+Netflix 10$,1 Month,10,Entertainment,NF-123,5
+Steam 20$,Steam Wallet,20,Gaming,ST-456,10
+Amazon 50$,Gift Card,50,Shopping,AMZ-789,3
+```
+
+**JSON Format:**
+```json
+[
+  {
+    "name": "Netflix 10$",
+    "description": "1 Month",
+    "price": 10,
+    "category": "Entertainment",
+    "code": "NF-123",
+    "stock": 5
+  },
+  {
+    "name": "Steam 20$",
+    "description": "Steam Wallet",
+    "price": 20,
+    "category": "Gaming",
+    "code": "ST-456",
+    "stock": 10
+  }
+]
+```
+
+#### Creating Coupons
+
+Use `/addcoupon` command to create discount coupons.
+
+**Command Format:**
+```
+/addcoupon <code> <type> <value> [min_purchase] [max_uses] [expiry_days]
+```
+
+**Parameters:**
+- `code`: Coupon code (e.g., SUMMER2024)
+- `type`: Discount type (`percent` or `fixed`)
+- `value`: Discount value (percentage or fixed amount)
+- `min_purchase`: Minimum purchase amount (optional, default: 0)
+- `max_uses`: Maximum number of uses (optional, default: unlimited)
+- `expiry_days`: Validity period in days (optional, default: 30)
+
+**Examples:**
+
+```bash
+# 20% discount, min $10, max 100 uses, valid for 30 days
+/addcoupon WELCOME20 percent 20 10 100 30
+
+# $10 fixed discount, min $50, unlimited uses, valid for 60 days
+/addcoupon SAVE10 fixed 10 50 -1 60
+
+# 15% discount, no minimum, 50 uses available
+/addcoupon SPECIAL15 percent 15 0 50
+```
+
+#### Manual Balance Management
 
 Use the admin utility script for manual operations:
 

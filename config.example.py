@@ -5,6 +5,10 @@
 # Get this from @BotFather on Telegram
 BOT_TOKEN = "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
 
+# Admin User IDs (List of Telegram user IDs who can use admin commands)
+# Get your user ID by messaging @userinfobot on Telegram
+ADMIN_IDS = [123456789, 987654321]  # Replace with your actual admin user IDs
+
 # Cryptocurrency Wallet Addresses
 # Replace with your actual wallet addresses
 CRYPTO_WALLETS = {

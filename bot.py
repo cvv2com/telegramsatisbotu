@@ -8,18 +8,30 @@ Otomatik gift card satış botu
 import logging
 import sys
 import os
+import csv
+import json
+import io
+from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
 import sqlite3
 
 # Try to import config, provide helpful error if missing
 try:
     from config import BOT_TOKEN, CRYPTO_WALLETS, GIFT_CARDS
+    # Try to import ADMIN_IDS, default to empty list if not found
+    try:
+        from config import ADMIN_IDS
+    except ImportError:
+        ADMIN_IDS = []
+        logger.warning("ADMIN_IDS not found in config.py. Admin features will be disabled.")
 except ImportError as e:
     print("\n" + "="*60)
     print("ERROR: config.py file not found!")
@@ -96,6 +108,50 @@ def init_db():
             pin TEXT,
             amount REAL,
             purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (user_id)
+        )
+    ''')
+    
+    # Products tablosu (bulk import için)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            price REAL NOT NULL,
+            category TEXT,
+            code TEXT UNIQUE,
+            stock INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Coupons tablosu
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS coupons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            discount_type TEXT NOT NULL,
+            discount_value REAL NOT NULL,
+            min_purchase REAL DEFAULT 0.0,
+            max_uses INTEGER DEFAULT -1,
+            used_count INTEGER DEFAULT 0,
+            expiry_date TIMESTAMP,
+            active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Coupon usage tablosu
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS coupon_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            coupon_id INTEGER,
+            user_id INTEGER,
+            discount_amount REAL,
+            used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (coupon_id) REFERENCES coupons (id),
             FOREIGN KEY (user_id) REFERENCES users (user_id)
         )
     ''')
@@ -489,6 +545,243 @@ async def show_main_menu(query):
     
     await query.edit_message_text(message, reply_markup=reply_markup)
 
+# ============ Admin Functions ============
+
+def is_admin(user_id: int) -> bool:
+    """Check if user is an admin"""
+    return user_id in ADMIN_IDS
+
+async def import_products_csv(file_content: str) -> tuple:
+    """Import products from CSV content"""
+    try:
+        reader = csv.DictReader(io.StringIO(file_content))
+        conn = sqlite3.connect('bot_database.db')
+        cursor = conn.cursor()
+        
+        imported = 0
+        errors = []
+        
+        for row in reader:
+            try:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO products (name, description, price, category, code, stock)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    row.get('name', ''),
+                    row.get('description', ''),
+                    float(row.get('price', 0)),
+                    row.get('category', ''),
+                    row.get('code', ''),
+                    int(row.get('stock', 0))
+                ))
+                imported += 1
+            except Exception as e:
+                errors.append(f"Row error: {str(e)}")
+        
+        conn.commit()
+        conn.close()
+        return (imported, errors)
+    except Exception as e:
+        return (0, [f"CSV parsing error: {str(e)}"])
+
+async def import_products_json(file_content: str) -> tuple:
+    """Import products from JSON content"""
+    try:
+        products = json.loads(file_content)
+        if not isinstance(products, list):
+            return (0, ["JSON must be an array of products"])
+        
+        conn = sqlite3.connect('bot_database.db')
+        cursor = conn.cursor()
+        
+        imported = 0
+        errors = []
+        
+        for product in products:
+            try:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO products (name, description, price, category, code, stock)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    product.get('name', ''),
+                    product.get('description', ''),
+                    float(product.get('price', 0)),
+                    product.get('category', ''),
+                    product.get('code', ''),
+                    int(product.get('stock', 0))
+                ))
+                imported += 1
+            except Exception as e:
+                errors.append(f"Product error: {str(e)}")
+        
+        conn.commit()
+        conn.close()
+        return (imported, errors)
+    except json.JSONDecodeError as e:
+        return (0, [f"JSON parsing error: {str(e)}"])
+    except Exception as e:
+        return (0, [f"Import error: {str(e)}"])
+
+async def import_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /import command - wait for file upload"""
+    user_id = update.effective_user.id
+    
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Bu komutu kullanma yetkiniz yok!")
+        return
+    
+    message = (
+        "📤 **Toplu Ürün İçe Aktarma**\n\n"
+        "CSV veya JSON dosyası gönderin:\n\n"
+        "**CSV Format:**\n"
+        "```\n"
+        "name,description,price,category,code,stock\n"
+        "Netflix 10$,1 Month,10,Entertainment,NF-123,5\n"
+        "Steam 20$,Steam Wallet,20,Gaming,ST-456,10\n"
+        "```\n\n"
+        "**JSON Format:**\n"
+        "```json\n"
+        "[\n"
+        "  {\n"
+        '    "name": "Netflix 10$",\n'
+        '    "description": "1 Month",\n'
+        '    "price": 10,\n'
+        '    "category": "Entertainment",\n'
+        '    "code": "NF-123",\n'
+        '    "stock": 5\n'
+        "  }\n"
+        "]\n"
+        "```"
+    )
+    
+    await update.message.reply_text(message, parse_mode='Markdown')
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle file uploads for product import"""
+    user_id = update.effective_user.id
+    
+    if not is_admin(user_id):
+        return
+    
+    document = update.message.document
+    
+    if not document:
+        return
+    
+    # Check file type
+    file_name = document.file_name.lower()
+    
+    if not (file_name.endswith('.csv') or file_name.endswith('.json')):
+        await update.message.reply_text("❌ Sadece CSV veya JSON dosyaları desteklenir!")
+        return
+    
+    # Download file
+    file = await context.bot.get_file(document.file_id)
+    file_content = await file.download_as_bytearray()
+    file_text = file_content.decode('utf-8')
+    
+    # Import based on file type
+    if file_name.endswith('.csv'):
+        imported, errors = await import_products_csv(file_text)
+    else:
+        imported, errors = await import_products_json(file_text)
+    
+    # Send result
+    if imported > 0:
+        message = f"✅ **İçe Aktarma Başarılı!**\n\n"
+        message += f"📦 {imported} ürün içe aktarıldı.\n"
+        if errors:
+            message += f"\n⚠️ {len(errors)} hata:\n"
+            message += "\n".join(errors[:5])  # Show first 5 errors
+    else:
+        message = f"❌ **İçe Aktarma Başarısız!**\n\n"
+        if errors:
+            message += "Hatalar:\n"
+            message += "\n".join(errors[:10])
+    
+    await update.message.reply_text(message, parse_mode='Markdown')
+
+async def addcoupon_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /addcoupon command"""
+    user_id = update.effective_user.id
+    
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Bu komutu kullanma yetkiniz yok!")
+        return
+    
+    # Parse arguments: /addcoupon CODE TYPE VALUE [MIN_PURCHASE] [MAX_USES] [EXPIRY_DAYS]
+    if len(context.args) < 3:
+        message = (
+            "📋 **Kupon Oluşturma**\n\n"
+            "**Komut formatı:**\n"
+            "`/addcoupon <code> <type> <value> [min_purchase] [max_uses] [expiry_days]`\n\n"
+            "**Parametreler:**\n"
+            "• `code`: Kupon kodu (örn: SUMMER2024)\n"
+            "• `type`: İndirim tipi (percent veya fixed)\n"
+            "• `value`: İndirim değeri (örn: 20 veya 10.50)\n"
+            "• `min_purchase`: Minimum alış tutarı (opsiyonel, varsayılan: 0)\n"
+            "• `max_uses`: Maksimum kullanım sayısı (opsiyonel, varsayılan: sınırsız)\n"
+            "• `expiry_days`: Geçerlilik süresi (gün) (opsiyonel, varsayılan: 30)\n\n"
+            "**Örnekler:**\n"
+            "`/addcoupon WELCOME20 percent 20 10 100 30`\n"
+            "→ %20 indirim, min 10$, max 100 kullanım, 30 gün\n\n"
+            "`/addcoupon SAVE10 fixed 10 50 -1 60`\n"
+            "→ 10$ indirim, min 50$, sınırsız kullanım, 60 gün"
+        )
+        await update.message.reply_text(message, parse_mode='Markdown')
+        return
+    
+    try:
+        code = context.args[0].upper()
+        discount_type = context.args[1].lower()
+        discount_value = float(context.args[2])
+        min_purchase = float(context.args[3]) if len(context.args) > 3 else 0.0
+        max_uses = int(context.args[4]) if len(context.args) > 4 else -1
+        expiry_days = int(context.args[5]) if len(context.args) > 5 else 30
+        
+        if discount_type not in ['percent', 'fixed']:
+            await update.message.reply_text("❌ İndirim tipi 'percent' veya 'fixed' olmalıdır!")
+            return
+        
+        if discount_value <= 0:
+            await update.message.reply_text("❌ İndirim değeri 0'dan büyük olmalıdır!")
+            return
+        
+        if discount_type == 'percent' and discount_value > 100:
+            await update.message.reply_text("❌ Yüzde indirimi 100'den büyük olamaz!")
+            return
+        
+        expiry_date = datetime.now() + timedelta(days=expiry_days)
+        
+        conn = sqlite3.connect('bot_database.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO coupons (code, discount_type, discount_value, min_purchase, max_uses, expiry_date)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (code, discount_type, discount_value, min_purchase, max_uses, expiry_date))
+        
+        conn.commit()
+        conn.close()
+        
+        message = (
+            "✅ **Kupon Oluşturuldu!**\n\n"
+            f"🎟️ **Kod:** `{code}`\n"
+            f"💰 **İndirim:** {discount_value}{'%' if discount_type == 'percent' else '$'}\n"
+            f"🛒 **Min. Alış:** ${min_purchase:.2f}\n"
+            f"🔢 **Max. Kullanım:** {'Sınırsız' if max_uses == -1 else max_uses}\n"
+            f"📅 **Son Kullanma:** {expiry_date.strftime('%Y-%m-%d')}\n"
+        )
+        
+        await update.message.reply_text(message, parse_mode='Markdown')
+        
+    except ValueError:
+        await update.message.reply_text("❌ Geçersiz değerler! Lütfen doğru format kullanın.")
+    except sqlite3.IntegrityError:
+        await update.message.reply_text(f"❌ '{code}' kodu zaten mevcut!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Hata: {str(e)}")
+
 def main():
     """Bot'u başlat"""
     # Veritabanını başlat
@@ -499,7 +792,10 @@ def main():
     
     # Handler'ları ekle
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("import", import_command))
+    application.add_handler(CommandHandler("addcoupon", addcoupon_command))
     application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     
     # Bot'u başlat
     logger.info("Bot başlatılıyor...")
