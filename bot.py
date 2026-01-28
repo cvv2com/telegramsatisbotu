@@ -16,7 +16,6 @@ from telegram.ext import (
     ContextTypes,
 )
 import sqlite3
-from datetime import datetime
 
 # Try to import config, provide helpful error if missing
 try:
