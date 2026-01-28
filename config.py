@@ -28,3 +28,16 @@ DATABASE_FILE = 'gift_cards.json'
 
 # Currency Symbol
 CURRENCY = '$'  # Changed to Dollar
+
+# Payment Configuration
+PAYPAL_EMAIL = os.environ.get('PAYPAL_EMAIL', '')
+
+# Crypto Wallet Addresses
+CRYPTO_WALLETS = {
+    'BTC': os.environ.get('BTC_WALLET', ''),
+    'ETH': os.environ.get('ETH_WALLET', ''),
+    'LTC': os.environ.get('LTC_WALLET', '')
+}
+
+# Stock Alert Threshold
+LOW_STOCK_THRESHOLD = int(os.environ.get('LOW_STOCK_THRESHOLD', '5'))
