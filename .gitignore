@@ -44,6 +44,5 @@ Thumbs.db
 # Logs
 *.log
 
-# Config (if contains sensitive data)
-# Uncomment if you want to ignore config.py
-# config.py
+# Config (contains sensitive data)
+config.py

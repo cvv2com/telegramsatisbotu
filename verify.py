@@ -28,6 +28,12 @@ def verify_config():
     try:
         from config import BOT_TOKEN, CRYPTO_WALLETS, GIFT_CARDS
         print("✅ Configuration loaded successfully")
+    except ImportError as e:
+        print(f"❌ Error importing configuration: {e}")
+        return False
+    except FileNotFoundError as e:
+        print(f"❌ Configuration file not found: {e}")
+        return False
     except Exception as e:
         print(f"❌ Error loading configuration: {e}")
         return False
@@ -102,14 +108,19 @@ def verify_config():
     print("Next Steps")
     print("="*60)
     
+    steps = []
     if not BOT_TOKEN or BOT_TOKEN == 'YOUR_BOT_TOKEN_HERE':
-        print("1. Get a bot token from @BotFather on Telegram")
-        print("2. Update BOT_TOKEN in config.py")
+        steps.append("Get a bot token from @BotFather on Telegram")
+        steps.append("Update BOT_TOKEN in config.py")
     
-    print("3. Add your cryptocurrency wallet addresses to config.py")
-    print("4. Add gift card images to gift_cards/ directory")
-    print("5. Install dependencies: pip install -r requirements.txt")
-    print("6. Run the bot: python3 bot.py")
+    steps.append("Add your cryptocurrency wallet addresses to config.py")
+    steps.append("Add gift card images to gift_cards/ directory")
+    steps.append("Install dependencies: pip install -r requirements.txt")
+    steps.append("Run the bot: python3 bot.py")
+    
+    for i, step in enumerate(steps, 1):
+        print(f"{i}. {step}")
+    
     print("\nFor help: python3 admin.py help")
     print()
     

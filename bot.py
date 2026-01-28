@@ -17,6 +17,9 @@ import sqlite3
 from datetime import datetime
 from config import BOT_TOKEN, CRYPTO_WALLETS, GIFT_CARDS
 
+# Constants
+MAX_TRANSACTION_HISTORY = 10  # Maximum number of transactions to show in history
+
 # Logging ayarları
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -91,10 +94,17 @@ def update_balance(user_id: int, amount: float, transaction_type: str, descripti
     cursor = conn.cursor()
     
     if transaction_type == 'purchase':
-        cursor.execute(
-            'UPDATE users SET balance = balance - ? WHERE user_id = ?',
-            (amount, user_id)
-        )
+        # Check balance before deduction to prevent negative balance
+        cursor.execute('SELECT balance FROM users WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        if result and result[0] >= amount:
+            cursor.execute(
+                'UPDATE users SET balance = balance - ? WHERE user_id = ?',
+                (amount, user_id)
+            )
+        else:
+            conn.close()
+            raise ValueError("Insufficient balance for purchase")
     else:  # deposit
         cursor.execute(
             'UPDATE users SET balance = balance + ? WHERE user_id = ?',
@@ -220,9 +230,11 @@ async def show_how_to_buy(query):
         "❓ Nasıl Satın Alınır?\n\n"
         "1️⃣ Aşağıdaki kripto para seçeneklerinden birini seçin\n"
         "2️⃣ Gösterilen cüzdan adresine ödeme yapın\n"
-        "3️⃣ Ödeme onaylandıktan sonra bakiyeniz yüklenecektir\n"
-        "4️⃣ Bakiyeniz ile gift card satın alabilirsiniz\n\n"
-        "⚠️ Not: Ödemeleriniz 1-3 onay sonrası otomatik yüklenir.\n\n"
+        "3️⃣ Ödeme yaptıktan sonra admin onayını bekleyin\n"
+        "4️⃣ Admin onayından sonra bakiyeniz yüklenecektir\n"
+        "5️⃣ Bakiyeniz ile gift card satın alabilirsiniz\n\n"
+        "⚠️ Önemli: Ödemeler manuel olarak kontrol edilir ve onaylanır.\n"
+        "Admin onayı genellikle 1-24 saat içinde yapılır.\n\n"
         "Ödeme yapmak için bir kripto para seçin:"
     )
     
@@ -249,10 +261,11 @@ async def show_crypto_wallet(query, crypto: str):
         f"⚠️ Önemli:\n"
         f"• Sadece {crypto.upper()} gönderin!\n"
         f"• Minimum miktar: $10\n"
-        f"• Ödeme 1-3 onay sonrası yüklenir\n"
-        f"• Bakiyeniz USD olarak yansıtılır\n\n"
+        f"• Ödemeniz manuel olarak kontrol edilir\n"
+        f"• Bakiye yüklemesi admin onayı ile yapılır\n"
+        f"• Onay süresi: 1-24 saat\n\n"
         f"Yukarıdaki adrese {crypto.upper()} gönderin. "
-        f"Ödemeniz onaylandığında bakiyeniz otomatik güncellenecektir."
+        f"Ödemeniz admin tarafından onaylandığında bakiyeniz güncellenecektir."
     )
     
     await query.edit_message_text(
@@ -267,8 +280,8 @@ async def show_transaction_history(query, user_id: int):
     cursor = conn.cursor()
     
     cursor.execute(
-        'SELECT transaction_type, amount, description, created_at FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 10',
-        (user_id,)
+        'SELECT transaction_type, amount, description, created_at FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+        (user_id, MAX_TRANSACTION_HISTORY)
     )
     transactions = cursor.fetchall()
     conn.close()
@@ -279,7 +292,7 @@ async def show_transaction_history(query, user_id: int):
     if not transactions:
         message = "📊 İşlem Geçmişi\n\nHenüz işlem bulunmamaktadır."
     else:
-        message = "📊 İşlem Geçmişi\n\n"
+        message = f"📊 İşlem Geçmişi (Son {MAX_TRANSACTION_HISTORY})\n\n"
         for trans in transactions:
             trans_type, amount, desc, created = trans
             emoji = "➕" if trans_type == "deposit" else "➖"
@@ -327,19 +340,20 @@ async def process_gift_card_purchase(query, user_id: int, card_id: str):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     try:
-        # Gift card görseli gönder
-        await query.message.reply_photo(
-            photo=open(card_info['image_path'], 'rb'),
-            caption=(
-                f"✅ Satın Alma Başarılı!\n\n"
-                f"🎁 {card_info['name']}\n"
-                f"💰 Tutar: ${card_info['amount']:.2f}\n"
-                f"📊 Kalan Bakiye: ${get_user_balance(user_id):.2f}\n\n"
-                f"Gift card bilgileriniz yukarıdadır.\n"
-                f"İyi alışverişler!"
-            ),
-            reply_markup=reply_markup
-        )
+        # Gift card görseli gönder (use context manager for proper file handling)
+        with open(card_info['image_path'], 'rb') as photo_file:
+            await query.message.reply_photo(
+                photo=photo_file,
+                caption=(
+                    f"✅ Satın Alma Başarılı!\n\n"
+                    f"🎁 {card_info['name']}\n"
+                    f"💰 Tutar: ${card_info['amount']:.2f}\n"
+                    f"📊 Kalan Bakiye: ${get_user_balance(user_id):.2f}\n\n"
+                    f"Gift card bilgileriniz yukarıdadır.\n"
+                    f"İyi alışverişler!"
+                ),
+                reply_markup=reply_markup
+            )
         await query.delete_message()
     except FileNotFoundError:
         # Eğer görsel yoksa sadece metin gönder

@@ -9,6 +9,9 @@ import sqlite3
 import sys
 from datetime import datetime
 
+# Constants
+MAX_USER_TRANSACTION_HISTORY = 20  # Maximum transactions to show for a user
+
 def get_all_users():
     """Tüm kullanıcıları listele"""
     conn = sqlite3.connect('bot_database.db')
@@ -35,6 +38,23 @@ def get_all_users():
 
 def add_balance(user_id, amount):
     """Kullanıcıya bakiye ekle"""
+    # Validate input
+    try:
+        user_id = int(user_id)
+        amount = float(amount)
+        
+        if user_id <= 0:
+            print("❌ Kullanıcı ID'si pozitif bir sayı olmalıdır!")
+            return
+        
+        if amount <= 0:
+            print("❌ Miktar pozitif bir sayı olmalıdır!")
+            return
+            
+    except ValueError:
+        print("❌ Geçersiz giriş! Kullanıcı ID ve miktar sayısal olmalıdır.")
+        return
+    
     conn = sqlite3.connect('bot_database.db')
     cursor = conn.cursor()
     
@@ -88,12 +108,12 @@ def get_user_info(user_id):
     
     # İşlem geçmişi
     cursor.execute(
-        'SELECT transaction_type, amount, description, created_at FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 20',
-        (user_id,)
+        'SELECT transaction_type, amount, description, created_at FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+        (user_id, MAX_USER_TRANSACTION_HISTORY)
     )
     transactions = cursor.fetchall()
     
-    print("\nSon İşlemler:")
+    print(f"\nSon İşlemler (Max {MAX_USER_TRANSACTION_HISTORY}):")
     print("-"*50)
     for trans in transactions:
         trans_type, amount, desc, created = trans
