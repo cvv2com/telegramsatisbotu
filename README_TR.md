@@ -2,6 +2,8 @@
 
 Telegram üzerinden otomatik gift card satışı yapan bir bot. Kripto para ile ödeme alıp, kullanıcılara gift card satar.
 
+**🪟 Windows Kullanıcıları:** Windows için özel kurulum talimatları için [WINDOWS.md](WINDOWS.md) dosyasına bakın.
+
 ## Özellikler
 
 - 🎉 `/start` komutu ile karşılama ve ana menü
@@ -11,6 +13,7 @@ Telegram üzerinden otomatik gift card satışı yapan bir bot. Kripto para ile 
 - 📊 İşlem geçmişi
 - 🔒 SQLite veritabanı ile güvenli veri saklama
 - 🤖 Otomatik gift card görseli gönderimi
+- 🪟 Windows desteği (batch dosyaları ile)
 
 ## Kurulum
 
@@ -18,10 +21,24 @@ Telegram üzerinden otomatik gift card satışı yapan bir bot. Kripto para ile 
 
 Python 3.8 veya üzeri gereklidir.
 
-### 2. Bağımlılıkları Yükleyin
+### 2. Kurulum
 
+**Windows Kullanıcıları için:**
+```cmd
+# Kurulum scriptini çalıştırın
+setup.bat
+```
+Ardından `config.py` dosyasını bot token'ınız ile düzenleyin ve `start.bat` ile başlatın. Detaylar için [WINDOWS.md](WINDOWS.md) dosyasına bakın.
+
+**Linux/Mac Kullanıcıları için:**
 ```bash
+# Setup scriptini çalıştırın
+chmod +x setup.sh
+./setup.sh
+
+# Veya manuel:
 pip install -r requirements.txt
+cp config.example.py config.py
 ```
 
 ### 3. Bot Token'ı Alın

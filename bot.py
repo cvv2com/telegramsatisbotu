@@ -6,6 +6,8 @@ Otomatik gift card satış botu
 """
 
 import logging
+import sys
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -15,7 +17,34 @@ from telegram.ext import (
 )
 import sqlite3
 from datetime import datetime
-from config import BOT_TOKEN, CRYPTO_WALLETS, GIFT_CARDS
+
+# Try to import config, provide helpful error if missing
+try:
+    from config import BOT_TOKEN, CRYPTO_WALLETS, GIFT_CARDS
+except ImportError as e:
+    print("\n" + "="*60)
+    print("ERROR: config.py file not found!")
+    print("="*60)
+    print("\nThe bot requires a config.py file with your bot token and settings.")
+    print("\nTo fix this:")
+    if os.name == 'nt':  # Windows
+        print("  1. Run: copy config.example.py config.py")
+    else:  # Unix/Linux/Mac
+        print("  1. Run: cp config.example.py config.py")
+    print("  2. Edit config.py and add your bot token from @BotFather")
+    print("  3. Add your cryptocurrency wallet addresses")
+    print("\nFor more help, see README.md or QUICKSTART.md")
+    print("="*60 + "\n")
+    sys.exit(1)
+except Exception as e:
+    print("\n" + "="*60)
+    print("ERROR loading config.py!")
+    print("="*60)
+    print(f"\nError details: {e}")
+    print("\nPlease check your config.py file for syntax errors.")
+    print("You can use config.example.py as a reference.")
+    print("="*60 + "\n")
+    sys.exit(1)
 
 # Constants
 MAX_TRANSACTION_HISTORY = 10  # Maximum number of transactions to show in history

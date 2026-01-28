@@ -4,6 +4,8 @@ An automated Telegram bot for selling gift cards with cryptocurrency payments.
 
 [Türkçe Dokümantasyon için README_TR.md dosyasına bakın](README_TR.md)
 
+**🪟 Windows Users:** See [WINDOWS.md](WINDOWS.md) for Windows-specific setup instructions.
+
 ## Features
 
 - 🎉 `/start` command with welcome message and main menu
@@ -13,6 +15,7 @@ An automated Telegram bot for selling gift cards with cryptocurrency payments.
 - 📊 Transaction history tracking
 - 🔒 Secure data storage with SQLite database
 - 🤖 Automatic gift card image delivery
+- 🪟 Windows support with batch files
 
 ## Quick Start
 
@@ -23,13 +26,26 @@ An automated Telegram bot for selling gift cards with cryptocurrency payments.
 
 ### 2. Installation
 
+**For Windows Users:**
+```cmd
+# Run the setup script
+setup.bat
+```
+Then edit `config.py` with your bot token and run `start.bat`. See [WINDOWS.md](WINDOWS.md) for details.
+
+**For Linux/Mac Users:**
 ```bash
 # Clone the repository
 git clone https://github.com/cvv2com/telegramsatisbotu.git
 cd telegramsatisbotu
 
-# Install dependencies
+# Run setup script
+chmod +x setup.sh
+./setup.sh
+
+# Or manually:
 pip install -r requirements.txt
+cp config.example.py config.py
 ```
 
 ### 3. Configuration
