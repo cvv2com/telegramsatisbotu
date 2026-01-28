@@ -140,8 +140,25 @@ Bot, JSON tabanlı basit bir veritabanı kullanır (`gift_cards.json`). Bu dosya
 ## 🔒 Güvenlik
 
 - Admin komutları sadece `ADMIN_IDS` listesindeki kullanıcılar tarafından kullanılabilir
-- Gift card kodları sadece satın alma sonrasında paylaşılır
+- Gift card kodları Telegram'ın spoiler özelliği ile gizli olarak paylaşılır (tıklanana kadar görünmez)
+- Kodlar satın alma sonrasında paylaşılır ve kullanıcıya mesajı silmesi önerilir
 - Bot token ve admin ID'leri ortam değişkenlerinde saklanır
+- Thread-safe veritabanı işlemleri ile aynı kartın birden fazla satılması engellenir
+- Tüm kritik işlemler için hata yakalama ve loglama mevcuttur
+
+### Güvenlik Önerileri
+
+1. **Üretim Ortamı İçin:**
+   - Gift card kodlarını veritabanında şifreli saklayın
+   - Gerçek ödeme entegrasyonu kullanın (Stripe, PayPal, vb.)
+   - SSL/TLS sertifikası ile HTTPS kullanın
+   - Düzenli yedekleme yapın
+   - Rate limiting ekleyin
+
+2. **Kullanıcı Verisi:**
+   - GDPR ve gizlilik yasalarına uyum sağlayın
+   - Kullanıcı verilerini koruyun
+   - Veri saklama politikası belirleyin
 
 ## 🤝 Katkıda Bulunma
 

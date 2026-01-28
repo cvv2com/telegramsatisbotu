@@ -22,8 +22,31 @@ logger = logging.getLogger(__name__)
 # Veritabanı
 db = GiftCardDB(config.DATABASE_FILE)
 
-# Conversation states
-ADD_CARD_NAME, ADD_CARD_DESC, ADD_CARD_PRICE, ADD_CARD_CATEGORY, ADD_CARD_CODE, ADD_CARD_IMAGE = range(6)
+
+def get_main_menu_keyboard(is_admin_user: bool):
+    """Ana menü klavyesini oluştur / Create main menu keyboard"""
+    keyboard = [
+        [InlineKeyboardButton("🎁 Gift Card'ları Görüntüle", callback_data='view_cards')],
+        [InlineKeyboardButton("📂 Kategoriler", callback_data='categories')],
+    ]
+    
+    if is_admin_user:
+        keyboard.append([InlineKeyboardButton("⚙️ Admin Panel", callback_data='admin_panel')])
+    
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_welcome_text(user_first_name: str) -> str:
+    """Hoş geldin mesajını oluştur / Create welcome message"""
+    return f"""
+🎉 Hoş geldiniz {user_first_name}!
+
+Bu bot üzerinden gift card satın alabilirsiniz.
+
+🎁 Gift Card'ları görüntülemek için aşağıdaki butonları kullanın.
+📦 Kategorilere göre arama yapabilirsiniz.
+💳 Satın almak istediğiniz kartı seçin ve işlemi tamamlayın.
+"""
 
 def is_admin(user_id: int) -> bool:
     """Kullanıcının admin olup olmadığını kontrol et"""
@@ -32,27 +55,8 @@ def is_admin(user_id: int) -> bool:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start komutu - Hoş geldin mesajı"""
     user = update.effective_user
-    
-    keyboard = [
-        [InlineKeyboardButton("🎁 Gift Card'ları Görüntüle", callback_data='view_cards')],
-        [InlineKeyboardButton("📂 Kategoriler", callback_data='categories')],
-    ]
-    
-    if is_admin(user.id):
-        keyboard.append([InlineKeyboardButton("⚙️ Admin Panel", callback_data='admin_panel')])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    welcome_text = f"""
-🎉 Hoş geldiniz {user.first_name}!
-
-Bu bot üzerinden gift card satın alabilirsiniz.
-
-🎁 Gift Card'ları görüntülemek için aşağıdaki butonları kullanın.
-📦 Kategorilere göre arama yapabilirsiniz.
-💳 Satın almak istediğiniz kartı seçin ve işlemi tamamlayın.
-"""
-    
+    reply_markup = get_main_menu_keyboard(is_admin(user.id))
+    welcome_text = get_welcome_text(user.first_name)
     await update.message.reply_text(welcome_text, reply_markup=reply_markup)
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -205,7 +209,8 @@ async def view_card_details(query, context, card_id):
                 parse_mode='Markdown'
             )
             await query.message.delete()
-        except:
+        except Exception as e:
+            logger.warning(f"Could not send image: {e}")
             await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
     else:
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
@@ -245,22 +250,31 @@ async def confirm_purchase(query, context, card_id):
     
     if not card or card['status'] != 'available':
         await query.edit_message_text(
-            "😔 Bu kart artık mevcut değil.",
+            "😔 Bu kart artık mevcut değil. Başka biri satın almış olabilir.",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔙 Ana Menü", callback_data='back_to_main')
             ]])
         )
         return
     
-    # Kartı satılmış olarak işaretle
-    db.mark_as_sold(card_id, user.id)
+    # Kartı satılmış olarak işaretle (thread-safe)
+    if not db.mark_as_sold(card_id, user.id):
+        await query.edit_message_text(
+            "😔 Bu kart artık mevcut değil. Başka biri az önce satın aldı.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Ana Menü", callback_data='back_to_main')
+            ]])
+        )
+        return
+    
     db.add_order(user.id, card_id, card['price'])
     
     # Kullanıcıya kodu gönder
     success_text = f"✅ *Satın Alma Başarılı!*\n\n"
     success_text += f"🎁 {card['name']}\n"
     success_text += f"💰 {card['price']}{config.CURRENCY}\n\n"
-    success_text += f"🎫 *Gift Card Kodu:*\n`{card['code']}`\n\n"
+    success_text += f"🎫 *Gift Card Kodu:*\n||`{card['code']}`||\n\n"
+    success_text += "⚠️ *Güvenlik:* Kodu kopyaladıktan sonra bu mesajı silmenizi öneririz.\n\n"
     success_text += "Teşekkür ederiz! 🎉"
     
     await query.edit_message_text(success_text, parse_mode='Markdown')
@@ -278,8 +292,8 @@ async def confirm_purchase(query, context, card_id):
                 text=admin_text,
                 parse_mode='Markdown'
             )
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Could not send notification to admin {admin_id}: {e}")
 
 async def admin_panel(query, context):
     """Admin paneli"""
@@ -344,10 +358,24 @@ async def add_card_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         name = parts[0]
         description = parts[1]
-        price = float(parts[2])
         category = parts[3]
         code = parts[4]
         image_url = parts[5] if len(parts) > 5 else None
+        
+        # Validate required fields
+        if not name or not description or not category or not code:
+            await update.message.reply_text("❌ Hata: İsim, açıklama, kategori ve kod alanları boş olamaz!")
+            return
+        
+        # Validate and parse price
+        try:
+            price = float(parts[2])
+            if price <= 0:
+                await update.message.reply_text("❌ Hata: Fiyat pozitif bir sayı olmalıdır!")
+                return
+        except ValueError:
+            await update.message.reply_text("❌ Hata: Geçersiz fiyat formatı! Lütfen sayısal bir değer girin.")
+            return
         
         card_id = db.add_gift_card(name, description, price, category, code, image_url)
         
@@ -359,7 +387,10 @@ async def add_card_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
     except Exception as e:
-        await update.message.reply_text(f"❌ Hata: {str(e)}")
+        logger.error(f"Error adding card: {e}")
+        await update.message.reply_text(
+            "❌ Bir hata oluştu. Lütfen komut formatını kontrol edin ve tekrar deneyin."
+        )
 
 async def admin_list_cards(query, context):
     """Admin için tüm kartları listele"""
@@ -438,27 +469,8 @@ async def show_stats(query, context):
 async def back_to_main(query, context):
     """Ana menüye dön"""
     user = query.from_user
-    
-    keyboard = [
-        [InlineKeyboardButton("🎁 Gift Card'ları Görüntüle", callback_data='view_cards')],
-        [InlineKeyboardButton("📂 Kategoriler", callback_data='categories')],
-    ]
-    
-    if is_admin(user.id):
-        keyboard.append([InlineKeyboardButton("⚙️ Admin Panel", callback_data='admin_panel')])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    welcome_text = f"""
-🎉 Hoş geldiniz {user.first_name}!
-
-Bu bot üzerinden gift card satın alabilirsiniz.
-
-🎁 Gift Card'ları görüntülemek için aşağıdaki butonları kullanın.
-📦 Kategorilere göre arama yapabilirsiniz.
-💳 Satın almak istediğiniz kartı seçin ve işlemi tamamlayın.
-"""
-    
+    reply_markup = get_main_menu_keyboard(is_admin(user.id))
+    welcome_text = get_welcome_text(user.first_name)
     await query.edit_message_text(welcome_text, reply_markup=reply_markup)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
