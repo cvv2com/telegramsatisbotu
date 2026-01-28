@@ -46,3 +46,8 @@ Thumbs.db
 
 # Config (contains sensitive data)
 config.py
+
+# Test files (temporary)
+test_gift_card.py
+*_test.py
+test_*.py.bak
