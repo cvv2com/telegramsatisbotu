@@ -21,7 +21,6 @@ def test_database():
         os.remove('test_bot.db')
     
     # Override database name for testing
-    import bot
     original_connect = sqlite3.connect
     
     def test_connect(db_name):
