@@ -37,6 +37,14 @@ ENV/
 
 # Database
 gift_cards.json
+test_gift_cards.json
+
+# Example files (for testing)
+example_*.csv
+example_*.json
+
+# Test files
+test_features.py
 
 # Logs
 *.log
