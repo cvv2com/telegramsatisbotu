@@ -115,3 +115,63 @@ DATABASE_FILE = '/path/to/your/database.json'
 ## 📚 Daha Fazla Bilgi
 
 Detaylı bilgi için [README.md](README.md) dosyasına bakın.
+
+---
+
+## 🆕 Yeni Özellikler (v2.0)
+
+### Çoklu Dil Desteği / Multi-language Support
+Botunuz artık Türkçe ve İngilizce dillerini destekliyor:
+```
+/language - Dil değiştir
+```
+
+### Stok Yönetimi / Stock Management
+Kartlarınızı stok miktarı ile ekleyin:
+```
+/addcard Netflix | 1 Ay Premium | 50 | Eğlence | NFLX-001 | 10
+                                                           ↑↑
+                                                        Stok miktarı
+```
+
+### Toplu Kart Ekleme / Bulk Card Addition
+CSV veya JSON dosyası ile birden fazla kart ekleyin:
+```
+/bulkaddcard
+(sonra CSV/JSON dosyası gönderin)
+```
+
+### Kupon Sistemi / Coupon System
+İndirim kuponları oluşturun:
+```
+/addcoupon HOSGELDIN | percentage | 10 | 100 | 30
+(Kod: HOSGELDIN, %10 indirim, max 100 kullanım, 30 gün geçerli)
+```
+
+### Sipariş Geçmişi / Order History
+Kullanıcılar siparişlerini görebilir:
+```
+/myorders
+```
+
+### Ödeme Entegrasyonu / Payment Integration
+PayPal ve Kripto para desteği için `.env` dosyasını yapılandırın:
+```
+PAYPAL_EMAIL=your_paypal@example.com
+BTC_WALLET=your_bitcoin_wallet
+ETH_WALLET=your_ethereum_wallet
+LTC_WALLET=your_litecoin_wallet
+```
+
+## 🎯 Hızlı Test Senaryosu / Quick Test Scenario
+
+1. Botu başlatın: `/start`
+2. Dil seçin (Türkçe/English)
+3. Test kartı ekleyin: `/addcard Test | Deneme | 5 | Test | CODE123 | 3`
+4. Kupon oluşturun: `/addcoupon TEST10 | percentage | 10 | 10 | 7`
+5. Admin paneline bakın
+6. Kullanıcı olarak test edin (farklı hesaptan)
+7. Sipariş geçmişi kontrol edin: `/myorders`
+
+✅ Tüm özellikler çalışıyorsa hazırsınız!
+
