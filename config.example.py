@@ -20,15 +20,15 @@ CRYPTO_WALLETS = {
 
 # Gift Card Configuration
 # Add or remove gift cards as needed
-# Each gift card can have:
+# Each gift card should have:
 #   - name: Display name
 #   - amount: Price in USD
-#   - card_number: 16-digit card number (optional)
-#   - exp_date: Expiration date MM/YY format (optional)
-#   - pin: PIN code (optional)
-#   - image_front: Path to front image (optional, falls back to image_path)
+#   - card_number: 16-digit card number
+#   - exp_date: Expiration date MM/YY format
+#   - pin: PIN code
+#   - image_front: Path to front image
 #   - image_back: Path to back image (optional)
-#   - image_path: Single image path (for backward compatibility)
+#   - description: Brief description
 GIFT_CARDS = {
     "mc_50": {
         "name": "Mastercard Gift Card $50",
@@ -49,15 +49,6 @@ GIFT_CARDS = {
         "image_front": "gift_cards/visa_30_front.jpg",
         "image_back": "gift_cards/visa_30_back.jpg",
         "description": "Visa $30 Gift Card"
-    },
-    # Example with single image (backward compatible)
-    "amazon_25": {
-        "name": "Amazon Gift Card $25",
-        "amount": 25.0,
-        "card_number": "AMZN-1234-5678-9012",
-        "pin": "XYZABC",
-        "image_path": "gift_cards/amazon_25.jpg",
-        "description": "Amazon $25 Gift Card"
     },
     # Add more gift cards here
 }
