@@ -58,6 +58,26 @@ ADMIN_IDS=sizin_telegram_id,diger_admin_id
 
 ### Adım 5: Botu başlatın
 
+**Kolay Yol (Otomatik):**
+
+Linux/Mac:
+```bash
+./start.sh
+```
+
+Windows:
+```
+start.bat
+```
+
+Bu scriptler otomatik olarak:
+- Sanal ortam oluşturur
+- Bağımlılıkları yükler
+- .env kontrolü yapar
+- Botu başlatır
+
+**Manuel Yol:**
+
 ```bash
 python bot.py
 ```
