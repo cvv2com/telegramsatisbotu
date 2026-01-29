@@ -1,62 +1,62 @@
 #!/bin/bash
-# Telegram Gift Card Satış Botu Başlatma Script'i
-# Telegram Gift Card Sales Bot Startup Script
+# Setup script for Telegram Gift Card Sales Bot
 
-echo "🚀 Telegram Gift Card Satış Botu başlatılıyor..."
+echo "==========================================="
+echo "Telegram Gift Card Sales Bot - Setup"
+echo "==========================================="
 echo ""
 
-# .env dosyası kontrolü / Check for .env file
-if [ ! -f .env ]; then
-    echo "⚠️  .env dosyası bulunamadı!"
-    echo "    .env.example dosyasını .env olarak kopyalayın ve düzenleyin."
-    echo ""
-    echo "    .env file not found!"
-    echo "    Copy .env.example to .env and edit it."
+# Check Python version
+echo "Checking Python version..."
+python3 --version
+
+if [ $? -ne 0 ]; then
+    echo "❌ Python 3 is not installed!"
+    echo "Please install Python 3.8 or higher"
     exit 1
 fi
 
-# Ortam değişkenlerini yükle / Load environment variables
-export $(cat .env | grep -v '^#' | xargs)
+# Install dependencies
+echo ""
+echo "Installing dependencies..."
+pip3 install -r requirements.txt
 
-# Bot token kontrolü / Check bot token
-if [ "$TELEGRAM_BOT_TOKEN" = "your_bot_token_here" ] || [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-    echo "❌ Hata: TELEGRAM_BOT_TOKEN ayarlanmamış!"
-    echo "   .env dosyasında bot tokeninizi ayarlayın."
-    echo ""
-    echo "   Error: TELEGRAM_BOT_TOKEN not set!"
-    echo "   Set your bot token in the .env file."
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to install dependencies!"
     exit 1
 fi
 
-# Admin ID kontrolü / Check admin IDs
-if [ -z "$ADMIN_IDS" ]; then
-    echo "⚠️  Uyarı: ADMIN_IDS ayarlanmamış!"
-    echo "   Admin paneline erişemeyeceksiniz."
+# Create gift_cards directory if not exists
+if [ ! -d "gift_cards" ]; then
     echo ""
-    echo "   Warning: ADMIN_IDS not set!"
-    echo "   You won't be able to access the admin panel."
+    echo "Creating gift_cards directory..."
+    mkdir -p gift_cards
 fi
 
-# Python sanal ortamı kontrolü / Check for virtual environment
-if [ ! -d "venv" ]; then
-    echo "📦 Sanal ortam bulunamadı. Oluşturuluyor..."
-    echo "   Virtual environment not found. Creating..."
-    python3 -m venv venv
+# Check if config.py exists
+if [ ! -f "config.py" ]; then
+    echo ""
+    echo "⚠️  Warning: config.py not found!"
+    echo "Please create config.py from config.example.py and add your bot token"
+    echo ""
+    echo "cp config.example.py config.py"
+    echo "nano config.py  # Edit and add your bot token"
+else
+    echo ""
+    echo "✅ config.py found"
 fi
 
-# Sanal ortamı etkinleştir / Activate virtual environment
-echo "🔧 Sanal ortam etkinleştiriliyor..."
-echo "   Activating virtual environment..."
-source venv/bin/activate
-
-# Bağımlılıkları yükle / Install dependencies
-echo "📦 Bağımlılıklar kontrol ediliyor..."
-echo "   Checking dependencies..."
-pip install -q -r requirements.txt
-
-# Botu başlat / Start the bot
+# Setup complete
 echo ""
-echo "✅ Bot başlatılıyor..."
-echo "   Starting bot..."
+echo "==========================================="
+echo "✅ Setup Complete!"
+echo "==========================================="
 echo ""
-python bot.py
+echo "Next steps:"
+echo "1. Edit config.py and add your bot token from @BotFather"
+echo "2. Add your cryptocurrency wallet addresses to config.py"
+echo "3. Add gift card images to the gift_cards/ directory"
+echo "4. Run the bot: python3 bot.py"
+echo ""
+echo "For admin operations: python3 admin.py help"
+echo ""
