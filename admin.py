@@ -16,11 +16,11 @@ def get_stats():
     """Genel istatistikleri göster"""
     db = GiftCardDB(DB_FILE)
     
-    # Get cards by category
-    mc_numeric = db.get_cards_by_category("MC Numeric")
-    visa_numeric = db.get_cards_by_category("Visa Numeric")
-    mc_picture = db.get_cards_by_category("MC Picture")
-    visa_picture = db.get_cards_by_category("Visa Picture")
+    # Get cards by category (all cards, not just available)
+    mc_numeric = db.get_cards_by_category("MC Numeric", status=None)
+    visa_numeric = db.get_cards_by_category("Visa Numeric", status=None)
+    mc_picture = db.get_cards_by_category("MC Picture", status=None)
+    visa_picture = db.get_cards_by_category("Visa Picture", status=None)
     
     mc_numeric_available = len([c for c in mc_numeric if c['status'] == 'available'])
     visa_numeric_available = len([c for c in visa_numeric if c['status'] == 'available'])
