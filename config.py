@@ -3,7 +3,7 @@
 
 # Telegram Bot Token
 # Get this from @BotFather on Telegram
-BOT_TOKEN = "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
+BOT_TOKEN = "8547124011:AAHZrClnI4yUM4epIBZi61MRTrrj5_LlyRA"
 
 # Admin User IDs (List of Telegram user IDs who can use admin commands)
 # Get your user ID by messaging @userinfobot on Telegram
