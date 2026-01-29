@@ -104,10 +104,12 @@ class GiftCardDB:
             'gift_card_purchases': [],  # New: detailed purchase records
             'coupons': [],
             'users': {},  # Store user preferences like language
+            'payment_transactions': [],  # New: crypto payment transactions
             'next_card_id': 1,
             'next_order_id': 1,
             'next_coupon_id': 1,
-            'next_purchase_id': 1  # New: for gift_card_purchases
+            'next_purchase_id': 1,  # New: for gift_card_purchases
+            'next_transaction_id': 1  # New: for payment_transactions
         }
     
     def _save(self):
@@ -545,6 +547,290 @@ class GiftCardDB:
                 errors.append(f"Row {idx + 1}: {str(e)}")
         
         return success_count, errors
+    
+    # Payment transaction methods
+    def create_payment_transaction(self, user_id: int, amount: float, currency: str,
+                                   wallet_address: str, user_wallet: Optional[str] = None,
+                                   exchange_rate: Optional[float] = None,
+                                   usd_equivalent: Optional[float] = None,
+                                   timeout_minutes: int = 30,
+                                   required_confirmations: int = 3,
+                                   notes: str = "") -> int:
+        """Create a new payment transaction
+        
+        Args:
+            user_id: User's Telegram ID
+            amount: Amount in cryptocurrency
+            currency: Cryptocurrency type (BTC, ETH, USDT, LTC)
+            wallet_address: Merchant's wallet address
+            user_wallet: User's wallet address (optional)
+            exchange_rate: Current exchange rate
+            usd_equivalent: USD equivalent of the amount
+            timeout_minutes: Transaction timeout in minutes (default: 30)
+            required_confirmations: Required confirmations (default: 3)
+            notes: Additional notes
+            
+        Returns:
+            Transaction ID
+        """
+        with self._lock:
+            # Initialize if not exists (for legacy databases)
+            if 'payment_transactions' not in self.data:
+                self.data['payment_transactions'] = []
+            if 'next_transaction_id' not in self.data:
+                self.data['next_transaction_id'] = 1
+            
+            transaction_id = self.data.get('next_transaction_id', 1)
+            now = datetime.now()
+            timeout_at = now + timedelta(minutes=timeout_minutes)
+            
+            transaction = {
+                'id': transaction_id,
+                'user_id': user_id,
+                'amount': amount,
+                'currency': currency.upper(),
+                'exchange_rate': exchange_rate,
+                'usd_equivalent': usd_equivalent,
+                'wallet_address': wallet_address,
+                'user_wallet': user_wallet,
+                'tx_hash': None,
+                'status': 'pending',  # pending/confirmed/failed/timeout
+                'confirmations': 0,
+                'required_confirmations': required_confirmations,
+                'created_at': now.isoformat(),
+                'confirmed_at': None,
+                'timeout_at': timeout_at.isoformat(),
+                'expires_at': None,
+                'notes': notes,
+                'ip_address': None
+            }
+            
+            self.data['payment_transactions'].append(transaction)
+            self.data['next_transaction_id'] = transaction_id + 1
+            self._save()
+            return transaction_id
+    
+    def update_transaction_status(self, transaction_id: int, status: str,
+                                  tx_hash: Optional[str] = None,
+                                  confirmations: Optional[int] = None,
+                                  notes: Optional[str] = None) -> bool:
+        """Update transaction status
+        
+        Args:
+            transaction_id: Transaction ID
+            status: New status (pending/confirmed/failed/timeout)
+            tx_hash: Transaction hash (optional)
+            confirmations: Number of confirmations (optional)
+            notes: Additional notes (optional)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        with self._lock:
+            if 'payment_transactions' not in self.data:
+                return False
+            
+            for tx in self.data['payment_transactions']:
+                if tx['id'] == transaction_id:
+                    tx['status'] = status
+                    
+                    if tx_hash is not None:
+                        tx['tx_hash'] = tx_hash
+                    
+                    if confirmations is not None:
+                        tx['confirmations'] = confirmations
+                    
+                    if notes is not None:
+                        tx['notes'] = notes
+                    
+                    self._save()
+                    return True
+            
+            return False
+    
+    def confirm_transaction(self, transaction_id: int, tx_hash: str,
+                           confirmations: int = None,
+                           credit_balance: bool = True) -> bool:
+        """Confirm a payment transaction
+        
+        Args:
+            transaction_id: Transaction ID
+            tx_hash: Transaction hash
+            confirmations: Number of confirmations
+            credit_balance: Whether to credit user balance (default: True)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        with self._lock:
+            if 'payment_transactions' not in self.data:
+                return False
+            
+            for tx in self.data['payment_transactions']:
+                if tx['id'] == transaction_id:
+                    # Update transaction
+                    tx['status'] = 'confirmed'
+                    tx['tx_hash'] = tx_hash
+                    tx['confirmed_at'] = datetime.now().isoformat()
+                    
+                    if confirmations is not None:
+                        tx['confirmations'] = confirmations
+                    
+                    # Credit user balance if requested
+                    if credit_balance and tx.get('usd_equivalent'):
+                        self.add_balance(tx['user_id'], tx['usd_equivalent'])
+                    
+                    self._save()
+                    return True
+            
+            return False
+    
+    def get_pending_transactions(self) -> List[Dict]:
+        """Get all pending transactions
+        
+        Returns:
+            List of pending transactions
+        """
+        if 'payment_transactions' not in self.data:
+            return []
+        
+        return [tx for tx in self.data['payment_transactions'] if tx['status'] == 'pending']
+    
+    def get_user_transactions(self, user_id: int, status: Optional[str] = None) -> List[Dict]:
+        """Get all transactions for a specific user
+        
+        Args:
+            user_id: User's Telegram ID
+            status: Filter by status (optional)
+            
+        Returns:
+            List of transactions
+        """
+        if 'payment_transactions' not in self.data:
+            return []
+        
+        transactions = [tx for tx in self.data['payment_transactions'] if tx['user_id'] == user_id]
+        
+        if status:
+            transactions = [tx for tx in transactions if tx['status'] == status]
+        
+        return sorted(transactions, key=lambda x: x['created_at'], reverse=True)
+    
+    def check_transaction_timeout(self, transaction_id: int) -> bool:
+        """Check if a transaction has timed out
+        
+        Args:
+            transaction_id: Transaction ID
+            
+        Returns:
+            True if timed out, False otherwise
+        """
+        if 'payment_transactions' not in self.data:
+            return False
+        
+        for tx in self.data['payment_transactions']:
+            if tx['id'] == transaction_id and tx['status'] == 'pending':
+                timeout_at = datetime.fromisoformat(tx['timeout_at'])
+                if datetime.now() > timeout_at:
+                    return True
+        
+        return False
+    
+    def get_transaction_by_hash(self, tx_hash: str) -> Optional[Dict]:
+        """Get transaction by TX hash
+        
+        Args:
+            tx_hash: Transaction hash
+            
+        Returns:
+            Transaction dictionary or None
+        """
+        if 'payment_transactions' not in self.data:
+            return None
+        
+        for tx in self.data['payment_transactions']:
+            if tx.get('tx_hash') == tx_hash:
+                return tx
+        
+        return None
+    
+    def get_transaction_by_id(self, transaction_id: int) -> Optional[Dict]:
+        """Get transaction by ID
+        
+        Args:
+            transaction_id: Transaction ID
+            
+        Returns:
+            Transaction dictionary or None
+        """
+        if 'payment_transactions' not in self.data:
+            return None
+        
+        for tx in self.data['payment_transactions']:
+            if tx['id'] == transaction_id:
+                return tx
+        
+        return None
+    
+    def get_all_transactions(self, status: Optional[str] = None) -> List[Dict]:
+        """Get all transactions
+        
+        Args:
+            status: Filter by status (optional)
+            
+        Returns:
+            List of transactions
+        """
+        if 'payment_transactions' not in self.data:
+            return []
+        
+        transactions = self.data['payment_transactions']
+        
+        if status:
+            transactions = [tx for tx in transactions if tx['status'] == status]
+        
+        return sorted(transactions, key=lambda x: x['created_at'], reverse=True)
+    
+    def cancel_payment(self, transaction_id: int, reason: str = "Cancelled by admin") -> bool:
+        """Cancel a payment transaction
+        
+        Args:
+            transaction_id: Transaction ID
+            reason: Cancellation reason
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.update_transaction_status(transaction_id, 'failed', notes=reason)
+    
+    def get_payment_stats(self) -> Dict:
+        """Get payment statistics
+        
+        Returns:
+            Dictionary with payment statistics
+        """
+        if 'payment_transactions' not in self.data:
+            return {
+                'total': 0,
+                'pending': 0,
+                'confirmed': 0,
+                'failed': 0,
+                'timeout': 0,
+                'total_volume_usd': 0.0
+            }
+        
+        transactions = self.data['payment_transactions']
+        
+        stats = {
+            'total': len(transactions),
+            'pending': len([tx for tx in transactions if tx['status'] == 'pending']),
+            'confirmed': len([tx for tx in transactions if tx['status'] == 'confirmed']),
+            'failed': len([tx for tx in transactions if tx['status'] == 'failed']),
+            'timeout': len([tx for tx in transactions if tx['status'] == 'timeout']),
+            'total_volume_usd': sum(tx.get('usd_equivalent', 0.0) for tx in transactions if tx['status'] == 'confirmed')
+        }
+        
+        return stats
     
     # Balance management methods for MC/Visa system
     def get_user_balance(self, user_id: int) -> float:
