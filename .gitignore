@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 *.so
 .Python
+env/
+venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -20,10 +23,12 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-env/
-ENV/
+# Bot Database
+bot_database.db
+
+# Environment
+.env
+.venv
 
 # IDE
 .vscode/
@@ -32,19 +37,17 @@ ENV/
 *.swo
 *~
 
-# Environment variables
-.env
-
-# Database
-gift_cards.json
-test_gift_cards.json
-
-# Example files (for testing)
-example_*.csv
-example_*.json
-
-# Test files
-test_features.py
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
+
+# Config (contains sensitive data)
+config.py
+
+# Test files (temporary)
+test_gift_card.py
+*_test.py
+test_*.py.bak
