@@ -52,10 +52,10 @@ class GiftCardDB:
         Args:
             months_valid: Number of months from now (default: 24 months)
         Returns:
-            Expiration date string in MM/YY format (uppercase)
+            Expiration date string in MM/YY format (e.g., "12/26")
         """
         exp_date = datetime.now() + timedelta(days=months_valid * 30)
-        return exp_date.strftime('%m/%y').upper()
+        return exp_date.strftime('%m/%y')
     
     @staticmethod
     def generate_pin(length: int = 3) -> str:
@@ -593,10 +593,11 @@ class GiftCardDB:
             return True
     
     # MC/Visa card specific methods
-    def add_mc_numeric_card(self, quantity: int = 1) -> List[int]:
+    def add_mc_numeric_card(self, quantity: int = 1, price: float = 20.0) -> List[int]:
         """Add MC numeric gift cards
         Args:
             quantity: Number of cards to add
+            price: Price per card (default: 20.0)
         Returns:
             List of card IDs
         """
@@ -608,9 +609,9 @@ class GiftCardDB:
             code = self.generate_card_code('MC', 12)
             
             card_id = self.add_gift_card(
-                name=f"MC Gift Card ${20}",
+                name=f"MC Gift Card ${price:.0f}",
                 description="Mastercard Numeric Gift Card",
-                price=20.0,
+                price=price,
                 category="MC Numeric",
                 code=code,
                 card_number=card_number,
@@ -621,10 +622,11 @@ class GiftCardDB:
             card_ids.append(card_id)
         return card_ids
     
-    def add_visa_numeric_card(self, quantity: int = 1) -> List[int]:
+    def add_visa_numeric_card(self, quantity: int = 1, price: float = 20.0) -> List[int]:
         """Add Visa numeric gift cards
         Args:
             quantity: Number of cards to add
+            price: Price per card (default: 20.0)
         Returns:
             List of card IDs
         """
@@ -636,9 +638,9 @@ class GiftCardDB:
             code = self.generate_card_code('VISA', 12)
             
             card_id = self.add_gift_card(
-                name=f"Visa Gift Card ${20}",
+                name=f"Visa Gift Card ${price:.0f}",
                 description="Visa Numeric Gift Card",
-                price=20.0,
+                price=price,
                 category="Visa Numeric",
                 code=code,
                 card_number=card_number,
@@ -649,10 +651,11 @@ class GiftCardDB:
             card_ids.append(card_id)
         return card_ids
     
-    def add_mc_picture_card(self, card_id_num: int) -> int:
+    def add_mc_picture_card(self, card_id_num: int, price: float = 50.0) -> int:
         """Add MC picture gift card
         Args:
             card_id_num: ID number for image file naming
+            price: Price per card (default: 50.0)
         Returns:
             Card ID
         """
@@ -662,9 +665,9 @@ class GiftCardDB:
         code = self.generate_card_code('MC-PIC', 12)
         
         return self.add_gift_card(
-            name="MC Gift Card Picture $50",
+            name=f"MC Gift Card Picture ${price:.0f}",
             description="Mastercard Picture Gift Card",
-            price=50.0,
+            price=price,
             category="MC Picture",
             code=code,
             card_number=card_number,
@@ -675,10 +678,11 @@ class GiftCardDB:
             stock=1
         )
     
-    def add_visa_picture_card(self, card_id_num: int) -> int:
+    def add_visa_picture_card(self, card_id_num: int, price: float = 50.0) -> int:
         """Add Visa picture gift card
         Args:
             card_id_num: ID number for image file naming
+            price: Price per card (default: 50.0)
         Returns:
             Card ID
         """
@@ -688,9 +692,9 @@ class GiftCardDB:
         code = self.generate_card_code('VISA-PIC', 12)
         
         return self.add_gift_card(
-            name="Visa Gift Card Picture $50",
+            name=f"Visa Gift Card Picture ${price:.0f}",
             description="Visa Picture Gift Card",
-            price=50.0,
+            price=price,
             category="Visa Picture",
             code=code,
             card_number=card_number,

@@ -1,12 +1,16 @@
+# Sensitive configuration
+config.py
+
+# Database files
+*.db.json
+gift_cards.db.json
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -23,14 +27,12 @@ wheels/
 .installed.cfg
 *.egg
 
-# Bot Database
-bot_database.db
+# Virtual environments
+venv/
+ENV/
+env/
 
-# Environment
-.env
-.venv
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
@@ -44,10 +46,6 @@ Thumbs.db
 # Logs
 *.log
 
-# Config (contains sensitive data)
-config.py
-
-# Test files (temporary)
-test_gift_card.py
-*_test.py
-test_*.py.bak
+# Test files
+test_*.db.json
+demo_*.db.json

@@ -247,6 +247,7 @@ async def purchase_confirmed(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if query.data == f'{CONFIRM_PREFIX}no':
         text = get_text('purchase_cancelled', lang)
         await query.edit_message_text(text)
+        context.user_data.clear()  # Clean up context
         return ConversationHandler.END
     
     # Get purchase details from context
@@ -258,6 +259,7 @@ async def purchase_confirmed(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     if not success:
         await query.edit_message_text(f"❌ {message}")
+        context.user_data.clear()  # Clean up context
         return ConversationHandler.END
     
     # Get remaining balance
