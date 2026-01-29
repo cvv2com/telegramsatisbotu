@@ -18,49 +18,50 @@ CRYPTO_WALLETS = {
     "ltc": "LUWPbpM43E2p7ZSh8cyTBEkvpHmr3cB8Ez",
 }
 
-# Gift Card Generation Configuration
+# MC/Visa Gift Card System Configuration (Version 3.0)
 GIFT_CARD_CONFIG = {
     "auto_generate": True,  # Auto-generate card numbers, expiration dates, and PINs
-    "default_card_type": "visa",  # Default card type: visa, mastercard, amex, discover
     "default_validity_months": 24,  # Default validity period in months
-    "default_pin_length": 4,  # Default PIN length (3-4 digits recommended)
-    "code_prefix": "GC",  # Prefix for auto-generated codes
+    "pin_length": 3,  # PIN length for MC/Visa cards (3 digits)
+    
+    # Minimum balance requirement
+    "minimum_balance": 20.0,  # Minimum balance required to make purchases ($20)
+    
+    # Card pricing
+    "numeric_card_price": 20.0,  # Price per numeric gift card ($20)
+    "picture_card_price": 50.0,  # Price per picture gift card ($50)
+    
+    # Card types available
+    "card_types": {
+        "mc_numeric": {
+            "name": "MC Gift Card (Numeric)",
+            "description": "Mastercard numeric gift card with card number, expiration date, and PIN",
+            "price": 20.0,
+            "category": "MC Numeric"
+        },
+        "visa_numeric": {
+            "name": "Visa Gift Card (Numeric)",
+            "description": "Visa numeric gift card with card number, expiration date, and PIN",
+            "price": 20.0,
+            "category": "Visa Numeric"
+        },
+        "mc_picture": {
+            "name": "MC Gift Card (Picture)",
+            "description": "Mastercard picture gift card with front and back images",
+            "price": 50.0,
+            "category": "MC Picture"
+        },
+        "visa_picture": {
+            "name": "Visa Gift Card (Picture)",
+            "description": "Visa picture gift card with front and back images",
+            "price": 50.0,
+            "category": "Visa Picture"
+        }
+    }
 }
 
-# Gift Card Configuration
-# Add or remove gift cards as needed
-# Each gift card should have:
-#   - name: Display name
-#   - amount: Price in USD
-#   - card_number: 16-digit card number (auto-generated if omitted)
-#   - exp_date: Expiration date MM/YY format (auto-generated if omitted)
-#   - pin: PIN code (auto-generated if omitted)
-#   - image_front: Path to front image
-#   - image_back: Path to back image (optional)
-#   - description: Brief description
-#
-# Legacy format (still supported):
-#   - image_path: Single image path (will be used as front image)
-GIFT_CARDS = {
-    "mc_50": {
-        "name": "Mastercard Gift Card $50",
-        "amount": 50.0,
-        "card_number": "5543554475829811",
-        "exp_date": "02/27",
-        "pin": "097",
-        "image_front": "gift_cards/mastercard_50_front.jpg",
-        "image_back": "gift_cards/mastercard_50_back.jpg",
-        "description": "Mastercard $50 Gift Card"
-    },
-    "visa_30": {
-        "name": "Visa Gift Card $30",
-        "amount": 30.0,
-        "card_number": "4532123456789012",
-        "exp_date": "12/28",
-        "pin": "234",
-        "image_front": "gift_cards/visa_30_front.jpg",
-        "image_back": "gift_cards/visa_30_back.jpg",
-        "description": "Visa $30 Gift Card"
-    },
-    # Add more gift cards here
-}
+# Gift Card Image Paths
+# Images should be placed in the /giftcards/ directory
+# Format: /giftcards/mc{ID}front.jpg, /giftcards/mc{ID}back.jpg
+# Format: /giftcards/visa{ID}front.jpg, /giftcards/visa{ID}back.jpg
+GIFTCARD_IMAGE_PATH = "/giftcards/"
