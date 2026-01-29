@@ -1,5 +1,9 @@
 """
 Veritabanı yönetimi - Database management
+
+Note: The card generation functions use Python's `random` module for simplicity.
+For production use with real payment cards, use the `secrets` module for 
+cryptographically secure random number generation.
 """
 import json
 import os
@@ -21,7 +25,7 @@ class GiftCardDB:
         Args:
             card_type: 'visa', 'mastercard', 'amex', or 'discover'
         Returns:
-            16-digit card number string
+            Card number string (15 digits for Amex, 16 digits for others)
         """
         # BIN (Bank Identification Number) prefixes
         bin_prefixes = {
@@ -70,8 +74,16 @@ class GiftCardDB:
             length: Total length including prefix (default: 12)
         Returns:
             Unique card code string
+        Raises:
+            ValueError: If length is too small for the prefix
         """
+        if length <= len(prefix):
+            raise ValueError(f"Length ({length}) must be greater than prefix length ({len(prefix)})")
+        
         code_length = length - len(prefix) - 1  # -1 for dash
+        if code_length <= 0:
+            raise ValueError(f"Length ({length}) is too small for prefix '{prefix}' plus separator")
+        
         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=code_length))
         return f"{prefix}-{code}"
     

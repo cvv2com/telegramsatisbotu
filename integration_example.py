@@ -192,7 +192,10 @@ class GiftCardBot:
         for idx, purchase in enumerate(purchases, 1):
             message += f"{idx}. {purchase['card_name']}\n"
             message += f"   💰 ${purchase['amount']:.2f}\n"
-            message += f"   💳 ****{purchase['card_number'][-4:] if purchase.get('card_number') else 'N/A'}\n"
+            # Safely get last 4 digits of card number
+            card_num = purchase.get('card_number', '')
+            last_four = card_num[-4:] if card_num and len(card_num) >= 4 else 'N/A'
+            message += f"   💳 ****{last_four}\n"
             message += f"   📅 {purchase['purchased_at']}\n\n"
         
         return message
