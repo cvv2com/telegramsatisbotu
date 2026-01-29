@@ -54,7 +54,7 @@ TRANSLATIONS = {
         
         # Admin
         'unauthorized': '⛔ Bu komutu kullanma yetkiniz yok.',
-        'admin_stats': '⚙️ **Admin Paneli - MC/Visa Sistem**\n\n📊 **İstatistikler:**\n\n💳 MC Numerik:\n  • Mevcut: {mc_numeric_available}\n  • Satılan: {mc_numeric_sold}\n\n💳 Visa Numerik:\n  • Mevcut: {visa_numeric_available}\n  • Satılan: {visa_numeric_sold}\n\n🖼️ MC Resimli:\n  • Mevcut: {mc_picture_available}\n  • Satılan: {mc_picture_sold}\n\n🖼️ Visa Resimli:\n  • Mevcut: {visa_picture_available}\n  • Satılan: {visa_picture_sold}\n\n💰 Toplam Gelir: ${revenue:.2f}\n\nKomutlar:\n/addmcnumeric <adet> - MC numerik ekle\n/addvisanumeric <adet> - Visa numerik ekle\n/addmcpicture <id> - MC resimli ekle\n/addvisapicture <id> - Visa resimli ekle\n/addbalance <user_id> <tutar> - Bakiye ekle',
+        'admin_stats': '⚙️ **Admin Paneli - MC/Visa Sistem**\n\n📊 **İstatistikler:**\n\n💳 MC Numerik:\n  • Mevcut: {mc_numeric_available}\n  • Satılan: {mc_numeric_sold}\n\n💳 Visa Numerik:\n  • Mevcut: {visa_numeric_available}\n  • Satılan: {visa_numeric_sold}\n\n🖼️ MC Resimli:\n  • Mevcut: {mc_picture_available}\n  • Satılan: {mc_picture_sold}\n\n🖼️ Visa Resimli:\n  • Mevcut: {visa_picture_available}\n  • Satılan: {visa_picture_sold}\n\n💰 Toplam Gelir: ${revenue:.2f}\n\n**Komutlar:**\n`/addmcnumeric <adet>` - MC numerik ekle\n`/addvisanumeric <adet>` - Visa numerik ekle\n`/addmcpicture <id>` - MC resimli ekle\n`/addvisapicture <id>` - Visa resimli ekle\n`/addbalance <user_id> <tutar>` - Bakiye ekle',
         
         # Add cards (Admin)
         'addcard_success': '✅ {count} adet {card_type} başarıyla eklendi!',
@@ -174,7 +174,7 @@ TRANSLATIONS = {
         
         # Admin
         'unauthorized': '⛔ You are not authorized to use this command.',
-        'admin_stats': '⚙️ **Admin Panel - MC/Visa System**\n\n📊 **Statistics:**\n\n💳 MC Numeric:\n  • Available: {mc_numeric_available}\n  • Sold: {mc_numeric_sold}\n\n💳 Visa Numeric:\n  • Available: {visa_numeric_available}\n  • Sold: {visa_numeric_sold}\n\n🖼️ MC Picture:\n  • Available: {mc_picture_available}\n  • Sold: {mc_picture_sold}\n\n🖼️ Visa Picture:\n  • Available: {visa_picture_available}\n  • Sold: {visa_picture_sold}\n\n💰 Total Revenue: ${revenue:.2f}\n\nCommands:\n/addmcnumeric <quantity> - Add MC numeric\n/addvisanumeric <quantity> - Add Visa numeric\n/addmcpicture <id> - Add MC picture\n/addvisapicture <id> - Add Visa picture\n/addbalance <user_id> <amount> - Add balance',
+        'admin_stats': '⚙️ **Admin Panel - MC/Visa System**\n\n📊 **Statistics:**\n\n💳 MC Numeric:\n  • Available: {mc_numeric_available}\n  • Sold: {mc_numeric_sold}\n\n💳 Visa Numeric:\n  • Available: {visa_numeric_available}\n  • Sold: {visa_numeric_sold}\n\n🖼️ MC Picture:\n  • Available: {mc_picture_available}\n  • Sold: {mc_picture_sold}\n\n🖼️ Visa Picture:\n  • Available: {visa_picture_available}\n  • Sold: {visa_picture_sold}\n\n💰 Total Revenue: ${revenue:.2f}\n\n**Commands:**\n`/addmcnumeric <quantity>` - Add MC numeric\n`/addvisanumeric <quantity>` - Add Visa numeric\n`/addmcpicture <id>` - Add MC picture\n`/addvisapicture <id>` - Add Visa picture\n`/addbalance <user_id> <amount>` - Add balance',
         
         # Add cards (Admin)
         'addcard_success': '✅ Successfully added {count} {card_type}!',
