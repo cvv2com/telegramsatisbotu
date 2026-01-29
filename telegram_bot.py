@@ -529,14 +529,13 @@ async def payment_amount_entered(update: Update, context: ContextTypes.DEFAULT_T
         
         currency = context.user_data.get('payment_currency', 'btc')
         
-        # For demo purposes, use fixed exchange rates
-        # In production, fetch real-time rates from an API
-        exchange_rates = {
+        # Get exchange rate from config or use demo values
+        exchange_rates = PAYMENT_CONFIG.get('exchange_rates', {
             'btc': 42500.0,
             'eth': 2200.0,
             'usdt': 1.0,
             'ltc': 65.0
-        }
+        })
         
         exchange_rate = exchange_rates.get(currency, 1.0)
         
@@ -575,7 +574,8 @@ async def payment_amount_entered(update: Update, context: ContextTypes.DEFAULT_T
             await update.message.reply_text(text, parse_mode='Markdown')
             return ENTERING_TX_HASH
         else:
-            await update.message.reply_text("Error getting payment instructions", parse_mode='Markdown')
+            text = get_text('error_getting_instructions', lang)
+            await update.message.reply_text(text, parse_mode='Markdown')
             return ConversationHandler.END
         
     except ValueError:
@@ -592,13 +592,15 @@ async def tx_hash_entered(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tx_id = context.user_data.get('current_payment_tx_id')
     
     if not tx_id:
-        await update.message.reply_text("Error: No payment transaction found", parse_mode='Markdown')
+        text = get_text('no_transaction_found', lang)
+        await update.message.reply_text(text, parse_mode='Markdown')
         return ConversationHandler.END
     
     # Get transaction
     tx = db.get_transaction_by_id(tx_id)
     if not tx:
-        await update.message.reply_text("Error: Transaction not found", parse_mode='Markdown')
+        text = get_text('no_transaction_found', lang)
+        await update.message.reply_text(text, parse_mode='Markdown')
         return ConversationHandler.END
     
     # Validate TX hash
@@ -760,7 +762,8 @@ async def admin_refund_payment(update: Update, context: ContextTypes.DEFAULT_TYP
         tx_id = int(context.args[0])
         reason = ' '.join(context.args[1:])
     except ValueError:
-        await update.message.reply_text("Invalid transaction ID", parse_mode='Markdown')
+        text = get_text('invalid_transaction_id', lang)
+        await update.message.reply_text(text, parse_mode='Markdown')
         return
     
     # Cancel payment
@@ -807,7 +810,22 @@ def main():
     application = Application.builder().token(BOT_TOKEN).build()
     
     # Initialize timeout handler
-    timeout_handler = TimeoutHandler(db, application, check_interval_minutes=PAYMENT_CONFIG.get('check_interval_minutes', 5))
+    payment_timeout_handler = TimeoutHandler(db, application, check_interval_minutes=PAYMENT_CONFIG.get('check_interval_minutes', 5))
+    
+    # Start timeout handler on app startup
+    async def post_init(app):
+        """Start timeout handler after bot initialization"""
+        await payment_timeout_handler.start()
+        logger.info("Payment timeout handler started")
+    
+    # Stop timeout handler on app shutdown
+    async def post_shutdown(app):
+        """Stop timeout handler before bot shutdown"""
+        await payment_timeout_handler.stop()
+        logger.info("Payment timeout handler stopped")
+    
+    application.post_init = post_init
+    application.post_shutdown = post_shutdown
     
     # Add conversation handler for buying cards
     buy_conv_handler = ConversationHandler(

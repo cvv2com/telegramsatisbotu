@@ -120,6 +120,9 @@ TRANSLATIONS = {
         # Errors
         'invalid_payment_amount': '❌ Geçersiz tutar! Minimum: ${min:.2f}, Maximum: ${max:.2f}',
         'payment_creation_error': '❌ Ödeme oluşturulamadı: {error}',
+        'no_transaction_found': '❌ İşlem bulunamadı',
+        'error_getting_instructions': '❌ Ödeme talimatları alınamadı',
+        'invalid_transaction_id': '❌ Geçersiz işlem ID',
     },
     'en': {
         # Main menu
@@ -237,6 +240,9 @@ TRANSLATIONS = {
         # Errors
         'invalid_payment_amount': '❌ Invalid amount! Minimum: ${min:.2f}, Maximum: ${max:.2f}',
         'payment_creation_error': '❌ Could not create payment: {error}',
+        'no_transaction_found': '❌ Transaction not found',
+        'error_getting_instructions': '❌ Error getting payment instructions',
+        'invalid_transaction_id': '❌ Invalid transaction ID',
     }
 }
 

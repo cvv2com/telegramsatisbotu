@@ -78,5 +78,12 @@ PAYMENT_CONFIG = {
     "check_interval_minutes": 5,  # Interval for checking timeouts
     "minimum_payment_usd": 20.0,  # Minimum payment amount in USD
     "maximum_payment_usd": 10000.0,  # Maximum payment amount in USD
+    # Exchange rates (demo values - replace with real-time API in production)
+    "exchange_rates": {
+        "btc": 42500.0,
+        "eth": 2200.0,
+        "usdt": 1.0,
+        "ltc": 65.0
+    }
 }
 

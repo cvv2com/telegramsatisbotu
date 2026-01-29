@@ -133,10 +133,11 @@ class PaymentHandler:
         if tx['status'] != 'pending':
             return False, f"Transaction already {tx['status']}"
         
-        # Validate transaction hash
-        is_valid, message = self.validate_payment(tx_hash, tx['currency'])
-        if not is_valid:
-            return False, message
+        # Validate transaction hash (skip if it's already set for this transaction)
+        if tx.get('tx_hash') != tx_hash:
+            is_valid, message = self.validate_payment(tx_hash, tx['currency'])
+            if not is_valid:
+                return False, message
         
         # Confirm transaction
         success = self.db.confirm_transaction(

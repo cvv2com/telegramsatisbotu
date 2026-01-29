@@ -218,7 +218,7 @@ def pending_payments():
         return
     
     print("\n" + "="*70)
-    print("BEKLEYENhala ÖDEMELER")
+    print("BEKLEYEN ÖDEMELER")
     print("="*70)
     print(f"{'ID':<8} {'User ID':<15} {'Tutar':<20} {'USD':<12} {'Oluşturulma':<20}")
     print("-"*70)
