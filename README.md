@@ -1,3 +1,102 @@
+# Gift Card System - Enhanced Features
+
+## 🎉 New Features (Latest Update)
+
+### Automated Card Generation
+The system now includes **automatic generation** of gift card details:
+- **Card Numbers**: Auto-generates valid 16-digit card numbers (Visa, Mastercard, Amex, Discover)
+- **Expiration Dates**: Auto-generates expiration dates (default: 24 months from now)
+- **PIN Codes**: Auto-generates secure PIN codes (3-4 digits)
+- **Card Codes**: Auto-generates unique identifiers with customizable prefixes
+
+### Gift Card Purchase Tracking
+New `gift_card_purchases` table records all card details delivered to customers:
+- Card number, expiration date, and PIN
+- Purchase timestamp
+- User association
+- Complete purchase history per user
+
+### Front/Back Image Support
+Support for both card faces:
+- **Front face**: Primary card image
+- **Back face**: Optional secondary image (e.g., terms, instructions)
+- **Legacy support**: Single image format still works
+
+### Configuration Options
+New `GIFT_CARD_CONFIG` in config.py:
+```python
+GIFT_CARD_CONFIG = {
+    "auto_generate": True,  # Enable/disable auto-generation
+    "default_card_type": "visa",  # Default card type
+    "default_validity_months": 24,  # Validity period
+    "default_pin_length": 4,  # PIN length
+    "code_prefix": "GC",  # Code prefix
+}
+```
+
+## 🔄 Usage Examples
+
+### Auto-Generated Cards
+```python
+# Add a card with auto-generated details
+card_id = db.add_gift_card(
+    name="Steam Gift Card $50",
+    description="Digital gaming card",
+    price=50.0,
+    category="Gaming",
+    code="STEAM-001",
+    stock=10
+)
+# Card number, expiration, and PIN are auto-generated
+```
+
+### Manual Card Details
+```python
+# Add a card with specific details
+card_id = db.add_gift_card(
+    name="Amazon Gift Card $100",
+    description="Shopping card",
+    price=100.0,
+    category="Shopping",
+    code="AMZ-001",
+    card_number="4111111111111111",
+    exp_date="12/25",
+    pin="1234",
+    image_front="images/amazon_front.jpg",
+    image_back="images/amazon_back.jpg",
+    stock=5
+)
+```
+
+### Recording Purchases
+```python
+# When a user purchases a card
+user_id = 123456789
+card = db.get_card_by_id(card_id)
+purchase_id = db.add_gift_card_purchase(user_id, card)
+
+# Retrieve user's purchase history
+purchases = db.get_user_purchases(user_id)
+for purchase in purchases:
+    print(f"Card: {purchase['card_number']}")
+    print(f"Expires: {purchase['exp_date']}")
+    print(f"PIN: {purchase['pin']}")
+```
+
+### Image Handling (Legacy + New)
+```python
+# Works with both formats
+images = db.get_card_images(card)
+if images['front']:
+    # Display front image
+    pass
+if images['back']:
+    # Display back image
+    pass
+```
+
+---
+
 # Gift Card System Migration Guide
 
 ## Mevcut Sistemden Yeni Sisteme Geçiş
@@ -288,10 +387,27 @@ C: Bot sadece kart bilgilerini metin olarak gönderir.
 ## 📞 Destek
 
 Sorun yaşarsanız:
-1. Test scriptini çalıştırın: `python test_gift_card.py`
+1. Test scriptini çalıştırın: `python test_gift_card_system.py`
 2. Log'ları kontrol edin
-3. GIFT_CARD_ENHANCEMENT.md dosyasını okuyun
+3. README.md dosyasının başındaki yeni özellikleri okuyun
 4. GitHub'da issue açın
+
+## 🧪 Test ve Doğrulama
+
+Sistemin düzgün çalıştığını doğrulamak için:
+
+```bash
+# Test scriptini çalıştırın
+python test_gift_card_system.py
+```
+
+Test scripti şunları doğrular:
+- ✅ Kart numarası, tarih ve PIN oluşturma
+- ✅ Otomatik ve manuel kart ekleme
+- ✅ Ön/arka görsel desteği
+- ✅ Purchase kayıtları
+- ✅ Geriye dönük uyumluluk
+- ✅ Toplu ekleme işlemleri
 
 ## 🎉 Sonuç
 
@@ -300,5 +416,7 @@ Geçiş tamamlandığında:
 - ✅ Daha iyi takip
 - ✅ Gelişmiş güvenlik
 - ✅ Daha mutlu müşteriler
+- ✅ Otomatik kart oluşturma
+- ✅ Detaylı satın alma kayıtları
 
 Başarılar! 🚀
