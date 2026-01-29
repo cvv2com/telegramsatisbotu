@@ -74,6 +74,55 @@ TRANSLATIONS = {
         # Language
         'select_language': '🌐 **Dil Seçimi / Language Selection**\n\nLütfen dilinizi seçin / Please select your language:',
         'language_changed': '✅ Dil Türkçe olarak ayarlandı.',
+        
+        # Payment System
+        'payment_menu': '💳 Kripto Para Ödeme',
+        'create_payment': '➕ Yeni Ödeme Oluştur',
+        'payment_status': '📊 İşlem Durumu',
+        'payment_history': '📜 Ödeme Geçmişi',
+        
+        # Payment instructions
+        'payment_instructions': '💰 **Ödeme Yönergeleri**\n\n1️⃣ Tutar: ${usd:.2f} = {crypto} {currency}\n2️⃣ Gönder: `{wallet}`\n3️⃣ TX Hash\'ini gir: /submit_tx\n4️⃣ Sistem onaylayacak (5-30 dk)\n5️⃣ Bakiye kredi edilecek\n\n⏱️ Timeout: {timeout} dakika\n🔗 Ağ: {network}\n✓ Gereken onay: {confirmations}',
+        'wallet_address': '📬 Cüzdan Adresi',
+        'send_amount': '💸 Gönderilecek Tutar',
+        'tx_hash_required': '🔗 TX Hash Gerekli',
+        'enter_tx_hash': 'Lütfen transaction hash\'inizi girin:',
+        'enter_payment_amount': 'Lütfen yüklemek istediğiniz tutarı girin (USD):',
+        'select_currency': '💰 Kripto para türü seçin:',
+        
+        # Payment status
+        'payment_pending': '⏳ İşlem Beklemede',
+        'payment_confirmed': '✅ İşlem Onaylandı',
+        'payment_failed': '❌ İşlem Başarısız',
+        'payment_timeout': '⏰ İşlem Zaman Aşımı',
+        'payment_created': '✅ Ödeme işlemi oluşturuldu! ID: #{tx_id}',
+        'payment_confirmed_msg': '✅ Ödeme onaylandı! ${amount:.2f} bakiyenize eklendi.',
+        'payment_timeout_msg': '⏰ Ödeme zaman aşımına uğradı. Lütfen yeni bir işlem oluşturun.',
+        'payment_invalid_tx': '❌ Geçersiz transaction hash!',
+        'payment_tx_exists': '❌ Bu transaction hash zaten kullanılmış!',
+        
+        # Payment status view
+        'payment_status_view': '📊 **İşlem Durumu**\n\nİşlem ID: #{tx_id}\nDurum: {status}\nTutar: {amount} {currency}\nUSD: ${usd:.2f}\nOluşturulma: {created}\n\n{details}',
+        'no_payment_history': '📜 Henüz ödeme geçmişiniz bulunmuyor.',
+        'payment_history_title': '📜 **Ödeme Geçmişi**\n\n',
+        'payment_history_item': '#{id} - {currency} - {status}\n💰 {amount:.8f} {currency} (${usd:.2f})\n📅 {date}\n\n',
+        
+        # Admin payment commands
+        'pending_payments_title': '⏳ **Bekleyen Ödemeler**\n\n',
+        'pending_payment_item': '#{id} - User: {user_id}\n💰 {amount:.8f} {currency} (${usd:.2f})\n📅 {date}\n⏰ Timeout: {timeout}\n\n',
+        'no_pending_payments': '✅ Bekleyen ödeme yok.',
+        'confirm_payment_usage': '❌ Kullanım: /confirm_payment <tx_hash>',
+        'payment_not_found': '❌ İşlem bulunamadı.',
+        'refund_payment_usage': '❌ Kullanım: /refund_payment <tx_id> <reason>',
+        'payment_refunded': '✅ İşlem #{tx_id} iade edildi.',
+        'payment_stats': '📊 **Ödeme İstatistikleri**\n\nToplam: {total}\nBekleyen: {pending}\nOnaylanan: {confirmed}\nBaşarısız: {failed}\nTimeout: {timeout}\n\n💰 Toplam Hacim: ${volume:.2f}',
+        
+        # Errors
+        'invalid_payment_amount': '❌ Geçersiz tutar! Minimum: ${min:.2f}, Maximum: ${max:.2f}',
+        'payment_creation_error': '❌ Ödeme oluşturulamadı: {error}',
+        'no_transaction_found': '❌ İşlem bulunamadı',
+        'error_getting_instructions': '❌ Ödeme talimatları alınamadı',
+        'invalid_transaction_id': '❌ Geçersiz işlem ID',
     },
     'en': {
         # Main menu
@@ -145,6 +194,55 @@ TRANSLATIONS = {
         # Language
         'select_language': '🌐 **Language Selection / Dil Seçimi**\n\nPlease select your language / Lütfen dilinizi seçin:',
         'language_changed': '✅ Language set to English.',
+        
+        # Payment System
+        'payment_menu': '💳 Crypto Payment',
+        'create_payment': '➕ Create New Payment',
+        'payment_status': '📊 Transaction Status',
+        'payment_history': '📜 Payment History',
+        
+        # Payment instructions
+        'payment_instructions': '💰 **Payment Instructions**\n\n1️⃣ Amount: ${usd:.2f} = {crypto} {currency}\n2️⃣ Send to: `{wallet}`\n3️⃣ Enter TX Hash: /submit_tx\n4️⃣ System will confirm (5-30 min)\n5️⃣ Balance will be credited\n\n⏱️ Timeout: {timeout} minutes\n🔗 Network: {network}\n✓ Required confirmations: {confirmations}',
+        'wallet_address': '📬 Wallet Address',
+        'send_amount': '💸 Amount to Send',
+        'tx_hash_required': '🔗 TX Hash Required',
+        'enter_tx_hash': 'Please enter your transaction hash:',
+        'enter_payment_amount': 'Please enter the amount to deposit (USD):',
+        'select_currency': '💰 Select cryptocurrency:',
+        
+        # Payment status
+        'payment_pending': '⏳ Transaction Pending',
+        'payment_confirmed': '✅ Transaction Confirmed',
+        'payment_failed': '❌ Transaction Failed',
+        'payment_timeout': '⏰ Transaction Timeout',
+        'payment_created': '✅ Payment transaction created! ID: #{tx_id}',
+        'payment_confirmed_msg': '✅ Payment confirmed! ${amount:.2f} added to your balance.',
+        'payment_timeout_msg': '⏰ Payment timed out. Please create a new transaction.',
+        'payment_invalid_tx': '❌ Invalid transaction hash!',
+        'payment_tx_exists': '❌ This transaction hash has already been used!',
+        
+        # Payment status view
+        'payment_status_view': '📊 **Transaction Status**\n\nTransaction ID: #{tx_id}\nStatus: {status}\nAmount: {amount} {currency}\nUSD: ${usd:.2f}\nCreated: {created}\n\n{details}',
+        'no_payment_history': '📜 No payment history yet.',
+        'payment_history_title': '📜 **Payment History**\n\n',
+        'payment_history_item': '#{id} - {currency} - {status}\n💰 {amount:.8f} {currency} (${usd:.2f})\n📅 {date}\n\n',
+        
+        # Admin payment commands
+        'pending_payments_title': '⏳ **Pending Payments**\n\n',
+        'pending_payment_item': '#{id} - User: {user_id}\n💰 {amount:.8f} {currency} (${usd:.2f})\n📅 {date}\n⏰ Timeout: {timeout}\n\n',
+        'no_pending_payments': '✅ No pending payments.',
+        'confirm_payment_usage': '❌ Usage: /confirm_payment <tx_hash>',
+        'payment_not_found': '❌ Transaction not found.',
+        'refund_payment_usage': '❌ Usage: /refund_payment <tx_id> <reason>',
+        'payment_refunded': '✅ Transaction #{tx_id} refunded.',
+        'payment_stats': '📊 **Payment Statistics**\n\nTotal: {total}\nPending: {pending}\nConfirmed: {confirmed}\nFailed: {failed}\nTimeout: {timeout}\n\n💰 Total Volume: ${volume:.2f}',
+        
+        # Errors
+        'invalid_payment_amount': '❌ Invalid amount! Minimum: ${min:.2f}, Maximum: ${max:.2f}',
+        'payment_creation_error': '❌ Could not create payment: {error}',
+        'no_transaction_found': '❌ Transaction not found',
+        'error_getting_instructions': '❌ Error getting payment instructions',
+        'invalid_transaction_id': '❌ Invalid transaction ID',
     }
 }
 

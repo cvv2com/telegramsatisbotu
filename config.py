@@ -65,3 +65,25 @@ GIFT_CARD_CONFIG = {
 # Format: /giftcards/mc{ID}front.jpg, /giftcards/mc{ID}back.jpg
 # Format: /giftcards/visa{ID}front.jpg, /giftcards/visa{ID}back.jpg
 GIFTCARD_IMAGE_PATH = "/giftcards/"
+
+# Payment System Configuration
+PAYMENT_CONFIG = {
+    "timeout_minutes": 30,  # Payment timeout in minutes
+    "required_confirmations": {
+        "btc": 3,
+        "eth": 12,
+        "usdt": 19,
+        "ltc": 6
+    },
+    "check_interval_minutes": 5,  # Interval for checking timeouts
+    "minimum_payment_usd": 20.0,  # Minimum payment amount in USD
+    "maximum_payment_usd": 10000.0,  # Maximum payment amount in USD
+    # Exchange rates (demo values - replace with real-time API in production)
+    "exchange_rates": {
+        "btc": 42500.0,
+        "eth": 2200.0,
+        "usdt": 1.0,
+        "ltc": 65.0
+    }
+}
+

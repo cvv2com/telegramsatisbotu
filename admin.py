@@ -191,6 +191,143 @@ def list_users():
     print("-"*70)
     print(f"Toplam kullanıcı: {len(db.data['users'])}\n")
 
+def payment_stats():
+    """Ödeme istatistiklerini göster"""
+    db = GiftCardDB(DB_FILE)
+    stats = db.get_payment_stats()
+    
+    print("\n" + "="*70)
+    print("ÖDEME İSTATİSTİKLERİ")
+    print("="*70)
+    print(f"\n📊 Genel:")
+    print(f"   Toplam İşlem: {stats['total']}")
+    print(f"   Bekleyen: {stats['pending']}")
+    print(f"   Onaylanan: {stats['confirmed']}")
+    print(f"   Başarısız: {stats['failed']}")
+    print(f"   Timeout: {stats['timeout']}")
+    print(f"\n💰 Toplam Hacim: ${stats['total_volume_usd']:.2f}")
+    print("="*70 + "\n")
+
+def pending_payments():
+    """Bekleyen ödemeleri listele"""
+    db = GiftCardDB(DB_FILE)
+    pending = db.get_pending_transactions()
+    
+    if not pending:
+        print("\n✅ Bekleyen ödeme yok.\n")
+        return
+    
+    print("\n" + "="*70)
+    print("BEKLEYEN ÖDEMELER")
+    print("="*70)
+    print(f"{'ID':<8} {'User ID':<15} {'Tutar':<20} {'USD':<12} {'Oluşturulma':<20}")
+    print("-"*70)
+    
+    for tx in pending:
+        amount_str = f"{tx['amount']:.8f} {tx['currency']}"
+        usd_str = f"${tx.get('usd_equivalent', 0):.2f}"
+        created = tx['created_at'][:19]
+        print(f"{tx['id']:<8} {tx['user_id']:<15} {amount_str:<20} {usd_str:<12} {created:<20}")
+    
+    print("-"*70)
+    print(f"Toplam bekleyen: {len(pending)}\n")
+
+def confirm_payment_cmd(tx_hash):
+    """Manuel ödeme onaylama"""
+    if not tx_hash:
+        print("❌ Transaction hash gerekli!")
+        print("Kullanım: python admin.py confirm_payment <tx_hash>")
+        return
+    
+    db = GiftCardDB(DB_FILE)
+    
+    # Find transaction by hash
+    tx = db.get_transaction_by_hash(tx_hash)
+    if not tx:
+        print(f"❌ Transaction hash bulunamadı: {tx_hash}")
+        return
+    
+    if tx['status'] != 'pending':
+        print(f"❌ İşlem zaten {tx['status']} durumunda!")
+        return
+    
+    # Confirm transaction
+    success = db.confirm_transaction(tx['id'], tx_hash, credit_balance=True)
+    
+    if success:
+        print(f"✅ İşlem onaylandı!")
+        print(f"   İşlem ID: #{tx['id']}")
+        print(f"   Kullanıcı: {tx['user_id']}")
+        print(f"   Tutar: {tx['amount']:.8f} {tx['currency']}")
+        print(f"   USD: ${tx.get('usd_equivalent', 0):.2f}")
+        print(f"   Bakiye kredilendirildi!")
+    else:
+        print("❌ İşlem onaylanamadı!")
+
+def cancel_payment_cmd(tx_id, reason=None):
+    """Ödemeyi iptal et"""
+    try:
+        tx_id = int(tx_id)
+    except ValueError:
+        print("❌ Geçersiz işlem ID!")
+        return
+    
+    if reason is None:
+        reason = "Cancelled by admin"
+    
+    db = GiftCardDB(DB_FILE)
+    
+    # Get transaction
+    tx = db.get_transaction_by_id(tx_id)
+    if not tx:
+        print(f"❌ İşlem bulunamadı: #{tx_id}")
+        return
+    
+    if tx['status'] != 'pending':
+        print(f"❌ İşlem zaten {tx['status']} durumunda!")
+        return
+    
+    # Cancel transaction
+    success = db.cancel_payment(tx_id, reason)
+    
+    if success:
+        print(f"✅ İşlem iptal edildi!")
+        print(f"   İşlem ID: #{tx_id}")
+        print(f"   Kullanıcı: {tx['user_id']}")
+        print(f"   Sebep: {reason}")
+    else:
+        print("❌ İşlem iptal edilemedi!")
+
+def transaction_history(user_id):
+    """Kullanıcının işlem geçmişini göster"""
+    try:
+        user_id = int(user_id)
+    except ValueError:
+        print("❌ Geçersiz kullanıcı ID!")
+        return
+    
+    db = GiftCardDB(DB_FILE)
+    transactions = db.get_user_transactions(user_id)
+    
+    if not transactions:
+        print(f"\n⚠️ Kullanıcı {user_id} için işlem bulunamadı.\n")
+        return
+    
+    print("\n" + "="*80)
+    print(f"KULLANICI {user_id} - İŞLEM GEÇMİŞİ")
+    print("="*80)
+    print(f"{'ID':<8} {'Tutar':<25} {'USD':<12} {'Durum':<12} {'Tarih':<20}")
+    print("-"*80)
+    
+    for tx in transactions:
+        amount_str = f"{tx['amount']:.8f} {tx['currency']}"
+        usd_str = f"${tx.get('usd_equivalent', 0):.2f}"
+        created = tx['created_at'][:19]
+        print(f"{tx['id']:<8} {amount_str:<25} {usd_str:<12} {tx['status']:<12} {created:<20}")
+    
+    print("-"*80)
+    print(f"Toplam işlem: {len(transactions)}\n")
+
 def print_help():
     """Yardım mesajını göster"""
     print("""
@@ -199,7 +336,7 @@ Admin Utility Script - MC/Visa Gift Card System
 Kullanım:
     python admin.py [komut] [parametreler]
 
-Komutlar:
+Gift Card Komutları:
     stats                           - Sistem istatistiklerini göster
     addmcnumeric <adet>             - MC numerik kart ekle
     addvisanumeric <adet>           - Visa numerik kart ekle
@@ -207,16 +344,26 @@ Komutlar:
     addvisapicture <id>             - Visa resimli kart ekle
     addbalance <user_id> <tutar>    - Kullanıcıya bakiye ekle
     users                           - Tüm kullanıcıları listele
+
+Ödeme Komutları:
+    payment_stats                   - Ödeme istatistiklerini göster
+    pending_payments                - Bekleyen ödemeleri listele
+    confirm_payment <tx_hash>       - Ödemeyi manuel onayla
+    cancel_payment <tx_id> [sebep]  - Ödemeyi iptal et
+    transaction_history <user_id>   - Kullanıcı işlem geçmişi
+
+Genel:
     help                            - Bu yardım mesajını göster
 
 Örnekler:
     python admin.py stats
     python admin.py addmcnumeric 10
-    python admin.py addvisanumeric 5
-    python admin.py addmcpicture 1
-    python admin.py addvisapicture 2
     python admin.py addbalance 123456789 100.50
-    python admin.py users
+    python admin.py payment_stats
+    python admin.py pending_payments
+    python admin.py confirm_payment abc123def456...
+    python admin.py cancel_payment 5 "User requested"
+    python admin.py transaction_history 123456789
     """)
 
 def main():
@@ -260,6 +407,29 @@ def main():
         add_balance_to_user(sys.argv[2], sys.argv[3])
     elif command == 'users':
         list_users()
+    elif command == 'payment_stats':
+        payment_stats()
+    elif command == 'pending_payments':
+        pending_payments()
+    elif command == 'confirm_payment':
+        if len(sys.argv) < 3:
+            print("❌ Transaction hash gerekli!")
+            print("Kullanım: python admin.py confirm_payment <tx_hash>")
+            return
+        confirm_payment_cmd(sys.argv[2])
+    elif command == 'cancel_payment':
+        if len(sys.argv) < 3:
+            print("❌ İşlem ID gerekli!")
+            print("Kullanım: python admin.py cancel_payment <tx_id> [sebep]")
+            return
+        reason = ' '.join(sys.argv[3:]) if len(sys.argv) > 3 else None
+        cancel_payment_cmd(sys.argv[2], reason)
+    elif command == 'transaction_history':
+        if len(sys.argv) < 3:
+            print("❌ Kullanıcı ID gerekli!")
+            print("Kullanım: python admin.py transaction_history <user_id>")
+            return
+        transaction_history(sys.argv[2])
     elif command == 'help':
         print_help()
     else:
