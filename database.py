@@ -676,9 +676,16 @@ class GiftCardDB:
                     if confirmations is not None:
                         tx['confirmations'] = confirmations
                     
-                    # Credit user balance if requested
+                    # Credit user balance if requested (without calling add_balance to avoid deadlock)
                     if credit_balance and tx.get('usd_equivalent'):
-                        self.add_balance(tx['user_id'], tx['usd_equivalent'])
+                        if 'users' not in self.data:
+                            self.data['users'] = {}
+                        user_id_str = str(tx['user_id'])
+                        if user_id_str not in self.data['users']:
+                            self.data['users'][user_id_str] = {'balance': 0.0}
+                        
+                        current_balance = float(self.data['users'][user_id_str].get('balance', 0.0))
+                        self.data['users'][user_id_str]['balance'] = current_balance + tx['usd_equivalent']
                     
                     self._save()
                     return True

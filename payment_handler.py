@@ -49,7 +49,7 @@ class PaymentHandler:
         """
         # Validate currency
         currency = currency.upper()
-        if currency not in self.crypto_wallets:
+        if currency.lower() not in self.crypto_wallets:
             return False, f"Unsupported currency: {currency}", None
         
         # Get wallet address
