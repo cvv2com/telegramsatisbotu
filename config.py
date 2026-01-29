@@ -1,22 +1,30 @@
 """
-Yapılandırma dosyası - Configuration file
+Configuration file
 """
 import os
 import sys
+from dotenv import load_dotenv
 
-# Telegram Bot Token - Bot Father'dan alınacak
-BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
+# Load .env file
+load_dotenv()
 
-# Admin kullanıcı ID'leri - Admin user IDs
+# Telegram Bot Token
+BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE').strip()
+
+# Admin user IDs
 try:
-    ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x.strip()]
+    admin_ids_str = os.environ.get('ADMIN_IDS', '')
+    ADMIN_IDS = [int(x.strip()) for x in admin_ids_str.split(',') if x.strip()]
+
+    if not ADMIN_IDS:
+        print("Warning: No ADMIN_IDS found! (Check your .env file)")
+        
 except ValueError as e:
-    print(f"Error: Invalid ADMIN_IDS format. Please provide comma-separated numeric IDs.")
-    print(f"Example: ADMIN_IDS=123456789,987654321")
+    print(f"Error: Invalid ADMIN_IDS format.")
     sys.exit(1)
 
-# Veritabanı dosyası - Database file
+# Database file
 DATABASE_FILE = 'gift_cards.json'
 
-# Para birimi - Currency
-CURRENCY = '₺'  # TL simgesi / TL symbol
+# Currency Symbol
+CURRENCY = '$'  # Changed to Dollar
