@@ -4,14 +4,76 @@ Veritabanı yönetimi - Database management
 import json
 import os
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import threading
+import random
+import string
 
 class GiftCardDB:
     def __init__(self, db_file: str):
         self.db_file = db_file
         self.data = self._load()
         self._lock = threading.Lock()
+    
+    @staticmethod
+    def generate_card_number(card_type: str = 'visa') -> str:
+        """Generate a unique card number based on card type
+        Args:
+            card_type: 'visa', 'mastercard', 'amex', or 'discover'
+        Returns:
+            16-digit card number string
+        """
+        # BIN (Bank Identification Number) prefixes
+        bin_prefixes = {
+            'visa': ['4'],
+            'mastercard': ['51', '52', '53', '54', '55'],
+            'amex': ['34', '37'],
+            'discover': ['6011', '65']
+        }
+        
+        prefix_list = bin_prefixes.get(card_type.lower(), ['4'])
+        prefix = random.choice(prefix_list)
+        
+        # Generate remaining digits (16 total for visa/mc/discover, 15 for amex)
+        target_length = 15 if card_type.lower() == 'amex' else 16
+        remaining_length = target_length - len(prefix)
+        
+        card_number = prefix + ''.join([str(random.randint(0, 9)) for _ in range(remaining_length)])
+        return card_number
+    
+    @staticmethod
+    def generate_expiration_date(months_valid: int = 24) -> str:
+        """Generate expiration date in MM/YY format
+        Args:
+            months_valid: Number of months from now (default: 24 months)
+        Returns:
+            Expiration date string in MM/YY format
+        """
+        exp_date = datetime.now() + timedelta(days=months_valid * 30)
+        return exp_date.strftime('%m/%y')
+    
+    @staticmethod
+    def generate_pin(length: int = 4) -> str:
+        """Generate a random PIN code
+        Args:
+            length: Number of digits (default: 4)
+        Returns:
+            PIN code string
+        """
+        return ''.join([str(random.randint(0, 9)) for _ in range(length)])
+    
+    @staticmethod
+    def generate_card_code(prefix: str = 'GC', length: int = 12) -> str:
+        """Generate a unique gift card code
+        Args:
+            prefix: Code prefix (default: 'GC')
+            length: Total length including prefix (default: 12)
+        Returns:
+            Unique card code string
+        """
+        code_length = length - len(prefix) - 1  # -1 for dash
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=code_length))
+        return f"{prefix}-{code}"
     
     def _load(self) -> Dict:
         """Veritabanını yükle / Load database"""
@@ -26,11 +88,13 @@ class GiftCardDB:
             'gift_cards': [],
             'categories': [],
             'orders': [],
+            'gift_card_purchases': [],  # New: detailed purchase records
             'coupons': [],
             'users': {},  # Store user preferences like language
             'next_card_id': 1,
             'next_order_id': 1,
-            'next_coupon_id': 1
+            'next_coupon_id': 1,
+            'next_purchase_id': 1  # New: for gift_card_purchases
         }
     
     def _save(self):
@@ -44,10 +108,42 @@ class GiftCardDB:
     
     def add_gift_card(self, name: str, description: str, price: float, 
                      category: str, code: str, image_url: Optional[str] = None, 
-                     stock: int = 1) -> int:
-        """Gift card ekle / Add gift card"""
+                     stock: int = 1, card_number: Optional[str] = None,
+                     exp_date: Optional[str] = None, pin: Optional[str] = None,
+                     image_front: Optional[str] = None, image_back: Optional[str] = None) -> int:
+        """Gift card ekle / Add gift card
+        
+        Supports both legacy format (image_url) and new format (image_front/image_back).
+        Supports both manual card details and auto-generation.
+        
+        Args:
+            name: Card name
+            description: Card description
+            price: Card price
+            category: Card category
+            code: Card code/identifier
+            image_url: Legacy - single image path (for backward compatibility)
+            stock: Stock quantity (default: 1)
+            card_number: Optional card number (auto-generated if not provided)
+            exp_date: Optional expiration date in MM/YY format (auto-generated if not provided)
+            pin: Optional PIN code (auto-generated if not provided)
+            image_front: Optional front face image path
+            image_back: Optional back face image path
+        
+        Returns:
+            Card ID
+        """
         with self._lock:
             card_id = self.data.get('next_card_id', 1)
+            
+            # Auto-generate card details if not provided
+            if card_number is None:
+                card_number = self.generate_card_number()
+            if exp_date is None:
+                exp_date = self.generate_expiration_date()
+            if pin is None:
+                pin = self.generate_pin()
+            
             card = {
                 'id': card_id,
                 'name': name,
@@ -55,7 +151,12 @@ class GiftCardDB:
                 'price': price,
                 'category': category,
                 'code': code,
-                'image_url': image_url,
+                'image_url': image_url,  # Legacy support
+                'image_front': image_front,  # New format
+                'image_back': image_back,  # New format
+                'card_number': card_number,  # New: actual card number
+                'exp_date': exp_date,  # New: expiration date
+                'pin': pin,  # New: PIN code
                 'stock': stock,
                 'status': 'available',  # available, sold, reserved
                 'created_at': datetime.now().isoformat(),
@@ -138,6 +239,89 @@ class GiftCardDB:
             self.data['orders'].append(order)
             self.data['next_order_id'] = order_id + 1
             self._save()
+    
+    def add_gift_card_purchase(self, user_id: int, card: Dict) -> int:
+        """Record a detailed gift card purchase with card details
+        
+        This creates a permanent record of the card details delivered to the user.
+        
+        Args:
+            user_id: Telegram user ID of the buyer
+            card: Card dictionary with all details
+        
+        Returns:
+            Purchase ID
+        """
+        with self._lock:
+            # Initialize if not exists (for legacy databases)
+            if 'gift_card_purchases' not in self.data:
+                self.data['gift_card_purchases'] = []
+            if 'next_purchase_id' not in self.data:
+                self.data['next_purchase_id'] = 1
+            
+            purchase_id = self.data.get('next_purchase_id', 1)
+            purchase = {
+                'id': purchase_id,
+                'user_id': user_id,
+                'card_id': card['id'],
+                'card_name': card['name'],
+                'card_number': card.get('card_number'),
+                'exp_date': card.get('exp_date'),
+                'pin': card.get('pin'),
+                'amount': card['price'],
+                'purchased_at': datetime.now().isoformat()
+            }
+            self.data['gift_card_purchases'].append(purchase)
+            self.data['next_purchase_id'] = purchase_id + 1
+            self._save()
+            return purchase_id
+    
+    def get_user_purchases(self, user_id: int) -> List[Dict]:
+        """Get all gift card purchases for a specific user
+        
+        Args:
+            user_id: Telegram user ID
+        
+        Returns:
+            List of purchase records with card details
+        """
+        if 'gift_card_purchases' not in self.data:
+            return []
+        
+        purchases = [p for p in self.data['gift_card_purchases'] if p['user_id'] == user_id]
+        return sorted(purchases, key=lambda x: x['purchased_at'], reverse=True)
+    
+    def get_card_images(self, card: Dict) -> Dict[str, Optional[str]]:
+        """Get card image paths, supporting both legacy and new formats
+        
+        Legacy format: card has 'image_url' field
+        New format: card has 'image_front' and 'image_back' fields
+        
+        Args:
+            card: Card dictionary
+        
+        Returns:
+            Dictionary with 'front' and 'back' keys (values can be None)
+        """
+        # Check for new format first
+        if card.get('image_front') or card.get('image_back'):
+            return {
+                'front': card.get('image_front'),
+                'back': card.get('image_back')
+            }
+        
+        # Legacy format: use image_url as front image
+        if card.get('image_url'):
+            return {
+                'front': card.get('image_url'),
+                'back': None
+            }
+        
+        # No images
+        return {
+            'front': None,
+            'back': None
+        }
     
     def get_stats(self) -> Dict:
         """İstatistikleri getir / Get statistics"""
@@ -318,7 +502,12 @@ class GiftCardDB:
     
     def bulk_add_cards(self, cards_data: List[Dict]) -> tuple[int, List[str]]:
         """Add multiple cards at once
-        Returns: (success_count, error_messages)"""
+        
+        Supports both legacy and new format cards.
+        Auto-generates card details if not provided.
+        
+        Returns: (success_count, error_messages)
+        """
         success_count = 0
         errors = []
         
@@ -330,7 +519,12 @@ class GiftCardDB:
                     price=float(card_data['price']),
                     category=card_data.get('category', 'General'),
                     code=card_data['code'],
-                    image_url=card_data.get('image_url'),
+                    image_url=card_data.get('image_url'),  # Legacy support
+                    image_front=card_data.get('image_front'),  # New format
+                    image_back=card_data.get('image_back'),  # New format
+                    card_number=card_data.get('card_number'),  # Auto-generated if None
+                    exp_date=card_data.get('exp_date'),  # Auto-generated if None
+                    pin=card_data.get('pin'),  # Auto-generated if None
                     stock=int(card_data.get('stock', 1))
                 )
                 success_count += 1
