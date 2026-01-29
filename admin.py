@@ -1,44 +1,143 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Admin Utility Script
-Manuel bakiye yönetimi ve kullanıcı yönetimi için yardımcı script
+Admin Utility Script - MC/Visa Gift Card System
+Bakiye yönetimi, kart ekleme ve kullanıcı yönetimi için yardımcı script
 """
 
-import sqlite3
 import sys
 from datetime import datetime
+from database import GiftCardDB
 
-# Constants
-MAX_USER_TRANSACTION_HISTORY = 20  # Maximum transactions to show for a user
+# Initialize database
+DB_FILE = 'gift_cards.db.json'
 
-def get_all_users():
-    """Tüm kullanıcıları listele"""
-    conn = sqlite3.connect('bot_database.db')
-    cursor = conn.cursor()
+def get_stats():
+    """Genel istatistikleri göster"""
+    db = GiftCardDB(DB_FILE)
     
-    cursor.execute('SELECT user_id, username, balance, created_at FROM users ORDER BY created_at DESC')
-    users = cursor.fetchall()
+    # Get cards by category (all cards, not just available)
+    mc_numeric = db.get_cards_by_category("MC Numeric", status=None)
+    visa_numeric = db.get_cards_by_category("Visa Numeric", status=None)
+    mc_picture = db.get_cards_by_category("MC Picture", status=None)
+    visa_picture = db.get_cards_by_category("Visa Picture", status=None)
     
-    conn.close()
+    mc_numeric_available = len([c for c in mc_numeric if c['status'] == 'available'])
+    visa_numeric_available = len([c for c in visa_numeric if c['status'] == 'available'])
+    mc_picture_available = len([c for c in mc_picture if c['status'] == 'available'])
+    visa_picture_available = len([c for c in visa_picture if c['status'] == 'available'])
     
-    print("\n" + "="*70)
-    print("KULLANICILAR LİSTESİ")
-    print("="*70)
-    print(f"{'User ID':<15} {'Username':<20} {'Balance':<15} {'Created At'}")
-    print("-"*70)
+    mc_numeric_sold = len([c for c in mc_numeric if c['status'] == 'sold'])
+    visa_numeric_sold = len([c for c in visa_numeric if c['status'] == 'sold'])
+    mc_picture_sold = len([c for c in mc_picture if c['status'] == 'sold'])
+    visa_picture_sold = len([c for c in visa_picture if c['status'] == 'sold'])
     
-    for user in users:
-        user_id, username, balance, created_at = user
-        username = username or "N/A"
-        print(f"{user_id:<15} {username:<20} ${balance:<14.2f} {created_at}")
+    # Calculate revenue
+    all_cards = db.get_all_cards()
+    total_revenue = sum(c['price'] for c in all_cards if c['status'] == 'sold')
     
-    print("-"*70)
-    print(f"Toplam kullanıcı: {len(users)}\n")
+    print("\n" + "="*60)
+    print("MC/VISA GIFT CARD SİSTEMİ - İSTATİSTİKLER")
+    print("="*60)
+    print(f"\n💳 MC Numerik:")
+    print(f"   Mevcut: {mc_numeric_available}")
+    print(f"   Satılan: {mc_numeric_sold}")
+    print(f"\n💳 Visa Numerik:")
+    print(f"   Mevcut: {visa_numeric_available}")
+    print(f"   Satılan: {visa_numeric_sold}")
+    print(f"\n🖼️ MC Resimli:")
+    print(f"   Mevcut: {mc_picture_available}")
+    print(f"   Satılan: {mc_picture_sold}")
+    print(f"\n🖼️ Visa Resimli:")
+    print(f"   Mevcut: {visa_picture_available}")
+    print(f"   Satılan: {visa_picture_sold}")
+    print(f"\n💰 Toplam Gelir: ${total_revenue:.2f}")
+    print("="*60 + "\n")
 
-def add_balance(user_id, amount):
+def add_mc_numeric(quantity):
+    """MC numerik kartları ekle"""
+    try:
+        quantity = int(quantity)
+        if quantity <= 0:
+            print("❌ Adet pozitif bir sayı olmalıdır!")
+            return
+    except ValueError:
+        print("❌ Geçersiz adet!")
+        return
+    
+    db = GiftCardDB(DB_FILE)
+    print(f"\n🔄 {quantity} adet MC numerik kart ekleniyor...")
+    
+    card_ids = db.add_mc_numeric_card(quantity)
+    
+    print(f"✅ {len(card_ids)} adet MC numerik kart başarıyla eklendi!")
+    print(f"   Kart ID'leri: {', '.join(map(str, card_ids))}")
+
+def add_visa_numeric(quantity):
+    """Visa numerik kartları ekle"""
+    try:
+        quantity = int(quantity)
+        if quantity <= 0:
+            print("❌ Adet pozitif bir sayı olmalıdır!")
+            return
+    except ValueError:
+        print("❌ Geçersiz adet!")
+        return
+    
+    db = GiftCardDB(DB_FILE)
+    print(f"\n🔄 {quantity} adet Visa numerik kart ekleniyor...")
+    
+    card_ids = db.add_visa_numeric_card(quantity)
+    
+    print(f"✅ {len(card_ids)} adet Visa numerik kart başarıyla eklendi!")
+    print(f"   Kart ID'leri: {', '.join(map(str, card_ids))}")
+
+def add_mc_picture(card_id_num):
+    """MC resimli kart ekle"""
+    try:
+        card_id_num = int(card_id_num)
+        if card_id_num <= 0:
+            print("❌ ID pozitif bir sayı olmalıdır!")
+            return
+    except ValueError:
+        print("❌ Geçersiz ID!")
+        return
+    
+    db = GiftCardDB(DB_FILE)
+    print(f"\n🔄 MC resimli kart ekleniyor (ID: {card_id_num})...")
+    print(f"   Görsel dosyaları:")
+    print(f"   - /giftcards/mc{card_id_num}front.jpg")
+    print(f"   - /giftcards/mc{card_id_num}back.jpg")
+    
+    card_id = db.add_mc_picture_card(card_id_num)
+    
+    print(f"✅ MC resimli kart başarıyla eklendi!")
+    print(f"   Kart ID: {card_id}")
+
+def add_visa_picture(card_id_num):
+    """Visa resimli kart ekle"""
+    try:
+        card_id_num = int(card_id_num)
+        if card_id_num <= 0:
+            print("❌ ID pozitif bir sayı olmalıdır!")
+            return
+    except ValueError:
+        print("❌ Geçersiz ID!")
+        return
+    
+    db = GiftCardDB(DB_FILE)
+    print(f"\n🔄 Visa resimli kart ekleniyor (ID: {card_id_num})...")
+    print(f"   Görsel dosyaları:")
+    print(f"   - /giftcards/visa{card_id_num}front.jpg")
+    print(f"   - /giftcards/visa{card_id_num}back.jpg")
+    
+    card_id = db.add_visa_picture_card(card_id_num)
+    
+    print(f"✅ Visa resimli kart başarıyla eklendi!")
+    print(f"   Kart ID: {card_id}")
+
+def add_balance_to_user(user_id, amount):
     """Kullanıcıya bakiye ekle"""
-    # Validate input
     try:
         user_id = int(user_id)
         amount = float(amount)
@@ -50,139 +149,74 @@ def add_balance(user_id, amount):
         if amount <= 0:
             print("❌ Miktar pozitif bir sayı olmalıdır!")
             return
-            
     except ValueError:
-        print("❌ Geçersiz giriş! Kullanıcı ID ve miktar sayısal olmalıdır.")
+        print("❌ Geçersiz giriş!")
         return
     
-    conn = sqlite3.connect('bot_database.db')
-    cursor = conn.cursor()
+    db = GiftCardDB(DB_FILE)
     
-    # Kullanıcının var olup olmadığını kontrol et
-    cursor.execute('SELECT user_id FROM users WHERE user_id = ?', (user_id,))
-    if not cursor.fetchone():
-        print(f"❌ Kullanıcı bulunamadı: {user_id}")
-        conn.close()
-        return
+    # Get current balance
+    current_balance = db.get_user_balance(user_id)
     
-    cursor.execute('UPDATE users SET balance = balance + ? WHERE user_id = ?', (amount, user_id))
-    cursor.execute(
-        'INSERT INTO transactions (user_id, transaction_type, amount, description) VALUES (?, ?, ?, ?)',
-        (user_id, 'deposit', amount, 'Admin tarafından manuel yükleme')
-    )
-    
-    conn.commit()
-    
-    # Güncel bakiyeyi göster
-    cursor.execute('SELECT balance FROM users WHERE user_id = ?', (user_id,))
-    new_balance = cursor.fetchone()[0]
-    
-    conn.close()
-    
-    print(f"✅ Bakiye eklendi!")
-    print(f"   Kullanıcı: {user_id}")
-    print(f"   Eklenen: ${amount:.2f}")
-    print(f"   Yeni Bakiye: ${new_balance:.2f}")
+    # Add balance
+    if db.add_balance(user_id, amount):
+        new_balance = db.get_user_balance(user_id)
+        print(f"✅ Bakiye eklendi!")
+        print(f"   Kullanıcı ID: {user_id}")
+        print(f"   Eklenen: ${amount:.2f}")
+        print(f"   Önceki: ${current_balance:.2f}")
+        print(f"   Yeni Bakiye: ${new_balance:.2f}")
+    else:
+        print("❌ Bakiye eklenemedi!")
 
-def get_user_info(user_id):
-    """Kullanıcı bilgilerini göster"""
-    conn = sqlite3.connect('bot_database.db')
-    cursor = conn.cursor()
+def list_users():
+    """Tüm kullanıcıları listele"""
+    db = GiftCardDB(DB_FILE)
     
-    cursor.execute('SELECT user_id, username, balance, created_at FROM users WHERE user_id = ?', (user_id,))
-    user = cursor.fetchone()
-    
-    if not user:
-        print(f"❌ Kullanıcı bulunamadı: {user_id}")
-        conn.close()
+    if 'users' not in db.data or not db.data['users']:
+        print("\n⚠️ Henüz kullanıcı bulunmuyor.\n")
         return
     
-    user_id, username, balance, created_at = user
+    print("\n" + "="*70)
+    print("KULLANICILAR LİSTESİ")
+    print("="*70)
+    print(f"{'User ID':<15} {'Balance':<15} {'Language':<15}")
+    print("-"*70)
     
-    print("\n" + "="*50)
-    print(f"KULLANICI BİLGİLERİ - {user_id}")
-    print("="*50)
-    print(f"Username: {username or 'N/A'}")
-    print(f"Balance: ${balance:.2f}")
-    print(f"Created: {created_at}")
+    for user_id_str, user_data in db.data['users'].items():
+        balance = user_data.get('balance', 0.0)
+        language = user_data.get('language', 'tr')
+        print(f"{user_id_str:<15} ${balance:<14.2f} {language:<15}")
     
-    # İşlem geçmişi
-    cursor.execute(
-        'SELECT transaction_type, amount, description, created_at FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
-        (user_id, MAX_USER_TRANSACTION_HISTORY)
-    )
-    transactions = cursor.fetchall()
-    
-    print(f"\nSon İşlemler (Max {MAX_USER_TRANSACTION_HISTORY}):")
-    print("-"*50)
-    for trans in transactions:
-        trans_type, amount, desc, created = trans
-        emoji = "➕" if trans_type == "deposit" else "➖"
-        print(f"{emoji} ${amount:.2f} - {desc}")
-        print(f"   {created}")
-    
-    print("="*50 + "\n")
-    
-    conn.close()
-
-def get_stats():
-    """Genel istatistikleri göster"""
-    conn = sqlite3.connect('bot_database.db')
-    cursor = conn.cursor()
-    
-    # Toplam kullanıcı
-    cursor.execute('SELECT COUNT(*) FROM users')
-    total_users = cursor.fetchone()[0]
-    
-    # Toplam bakiye
-    cursor.execute('SELECT SUM(balance) FROM users')
-    total_balance = cursor.fetchone()[0] or 0
-    
-    # Toplam işlem
-    cursor.execute('SELECT COUNT(*) FROM transactions')
-    total_transactions = cursor.fetchone()[0]
-    
-    # Toplam satış
-    cursor.execute('SELECT SUM(amount) FROM transactions WHERE transaction_type = "purchase"')
-    total_sales = cursor.fetchone()[0] or 0
-    
-    # Toplam yükleme
-    cursor.execute('SELECT SUM(amount) FROM transactions WHERE transaction_type = "deposit"')
-    total_deposits = cursor.fetchone()[0] or 0
-    
-    conn.close()
-    
-    print("\n" + "="*50)
-    print("SİSTEM İSTATİSTİKLERİ")
-    print("="*50)
-    print(f"Toplam Kullanıcı: {total_users}")
-    print(f"Toplam Bakiye: ${total_balance:.2f}")
-    print(f"Toplam İşlem: {total_transactions}")
-    print(f"Toplam Satış: ${total_sales:.2f}")
-    print(f"Toplam Yükleme: ${total_deposits:.2f}")
-    print(f"Net Gelir: ${total_sales - total_balance:.2f}")
-    print("="*50 + "\n")
+    print("-"*70)
+    print(f"Toplam kullanıcı: {len(db.data['users'])}\n")
 
 def print_help():
     """Yardım mesajını göster"""
     print("""
-Admin Utility Script - Telegram Gift Card Bot
+Admin Utility Script - MC/Visa Gift Card System
 
 Kullanım:
     python admin.py [komut] [parametreler]
 
 Komutlar:
-    users                   - Tüm kullanıcıları listele
-    user <user_id>          - Kullanıcı bilgilerini göster
-    add <user_id> <amount>  - Kullanıcıya bakiye ekle
-    stats                   - Genel istatistikleri göster
-    help                    - Bu yardım mesajını göster
+    stats                           - Sistem istatistiklerini göster
+    addmcnumeric <adet>             - MC numerik kart ekle
+    addvisanumeric <adet>           - Visa numerik kart ekle
+    addmcpicture <id>               - MC resimli kart ekle
+    addvisapicture <id>             - Visa resimli kart ekle
+    addbalance <user_id> <tutar>    - Kullanıcıya bakiye ekle
+    users                           - Tüm kullanıcıları listele
+    help                            - Bu yardım mesajını göster
 
 Örnekler:
-    python admin.py users
-    python admin.py user 123456789
-    python admin.py add 123456789 100.50
     python admin.py stats
+    python admin.py addmcnumeric 10
+    python admin.py addvisanumeric 5
+    python admin.py addmcpicture 1
+    python admin.py addvisapicture 2
+    python admin.py addbalance 123456789 100.50
+    python admin.py users
     """)
 
 def main():
@@ -192,25 +226,40 @@ def main():
     
     command = sys.argv[1].lower()
     
-    if command == 'users':
-        get_all_users()
-    elif command == 'user':
-        if len(sys.argv) < 3:
-            print("❌ Kullanıcı ID'si gerekli!")
-            print("Kullanım: python admin.py user <user_id>")
-            return
-        user_id = int(sys.argv[2])
-        get_user_info(user_id)
-    elif command == 'add':
-        if len(sys.argv) < 4:
-            print("❌ Kullanıcı ID'si ve miktar gerekli!")
-            print("Kullanım: python admin.py add <user_id> <amount>")
-            return
-        user_id = int(sys.argv[2])
-        amount = float(sys.argv[3])
-        add_balance(user_id, amount)
-    elif command == 'stats':
+    if command == 'stats':
         get_stats()
+    elif command == 'addmcnumeric':
+        if len(sys.argv) < 3:
+            print("❌ Adet gerekli!")
+            print("Kullanım: python admin.py addmcnumeric <adet>")
+            return
+        add_mc_numeric(sys.argv[2])
+    elif command == 'addvisanumeric':
+        if len(sys.argv) < 3:
+            print("❌ Adet gerekli!")
+            print("Kullanım: python admin.py addvisanumeric <adet>")
+            return
+        add_visa_numeric(sys.argv[2])
+    elif command == 'addmcpicture':
+        if len(sys.argv) < 3:
+            print("❌ ID gerekli!")
+            print("Kullanım: python admin.py addmcpicture <id>")
+            return
+        add_mc_picture(sys.argv[2])
+    elif command == 'addvisapicture':
+        if len(sys.argv) < 3:
+            print("❌ ID gerekli!")
+            print("Kullanım: python admin.py addvisapicture <id>")
+            return
+        add_visa_picture(sys.argv[2])
+    elif command == 'addbalance':
+        if len(sys.argv) < 4:
+            print("❌ Kullanıcı ID'si ve tutar gerekli!")
+            print("Kullanım: python admin.py addbalance <user_id> <tutar>")
+            return
+        add_balance_to_user(sys.argv[2], sys.argv[3])
+    elif command == 'users':
+        list_users()
     elif command == 'help':
         print_help()
     else:

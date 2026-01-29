@@ -1,21 +1,21 @@
-# Example Environment File
+# Example Configuration File
 # Copy this to config.py and fill in your actual values
 
 # Telegram Bot Token
 # Get this from @BotFather on Telegram
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your actual bot token
+BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
 
 # Admin User IDs (List of Telegram user IDs who can use admin commands)
 # Get your user ID by messaging @userinfobot on Telegram
-ADMIN_IDS = [123456789, 987654321]  # Replace with your actual admin user IDs
+ADMIN_IDS = [123456789]  # Replace with your actual admin user IDs
 
 # Cryptocurrency Wallet Addresses
 # Replace with your actual wallet addresses
 CRYPTO_WALLETS = {
-    "btc": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-    "eth": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-    "usdt": "TXj9KpLuTdU8kqvU9ZnQxQHDJVPH2NFq8K",
-    "ltc": "LUWPbpM43E2p7ZSh8cyTBEkvpHmr3cB8Ez",
+    "btc": "YOUR_BTC_ADDRESS",
+    "eth": "YOUR_ETH_ADDRESS",
+    "usdt": "YOUR_USDT_ADDRESS",
+    "ltc": "YOUR_LTC_ADDRESS",
 }
 
 # MC/Visa Gift Card System Configuration (Version 3.0)

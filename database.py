@@ -23,14 +23,15 @@ class GiftCardDB:
     def generate_card_number(card_type: str = 'visa') -> str:
         """Generate a unique card number based on card type
         Args:
-            card_type: 'visa', 'mastercard', 'amex', or 'discover'
+            card_type: 'visa', 'mc', 'mastercard', 'amex', or 'discover'
         Returns:
             Card number string (15 digits for Amex, 16 digits for others)
         """
         # BIN (Bank Identification Number) prefixes
         bin_prefixes = {
             'visa': ['4'],
-            'mastercard': ['51', '52', '53', '54', '55'],
+            'mc': ['5'],  # MC cards start with 5
+            'mastercard': ['5'],
             'amex': ['34', '37'],
             'discover': ['6011', '65']
         }
@@ -51,16 +52,16 @@ class GiftCardDB:
         Args:
             months_valid: Number of months from now (default: 24 months)
         Returns:
-            Expiration date string in MM/YY format
+            Expiration date string in MM/YY format (e.g., "12/26")
         """
         exp_date = datetime.now() + timedelta(days=months_valid * 30)
         return exp_date.strftime('%m/%y')
     
     @staticmethod
-    def generate_pin(length: int = 4) -> str:
+    def generate_pin(length: int = 3) -> str:
         """Generate a random PIN code
         Args:
-            length: Number of digits (default: 4)
+            length: Number of digits (default: 3 for MC/Visa gift cards)
         Returns:
             PIN code string
         """
@@ -544,3 +545,208 @@ class GiftCardDB:
                 errors.append(f"Row {idx + 1}: {str(e)}")
         
         return success_count, errors
+    
+    # Balance management methods for MC/Visa system
+    def get_user_balance(self, user_id: int) -> float:
+        """Get user's current balance"""
+        if 'users' not in self.data:
+            self.data['users'] = {}
+        user = self.data['users'].get(str(user_id), {})
+        return float(user.get('balance', 0.0))
+    
+    def add_balance(self, user_id: int, amount: float) -> bool:
+        """Add balance to user account
+        Args:
+            user_id: User's Telegram ID
+            amount: Amount to add
+        Returns:
+            True if successful
+        """
+        with self._lock:
+            if 'users' not in self.data:
+                self.data['users'] = {}
+            user_id_str = str(user_id)
+            if user_id_str not in self.data['users']:
+                self.data['users'][user_id_str] = {'balance': 0.0}
+            
+            current_balance = float(self.data['users'][user_id_str].get('balance', 0.0))
+            self.data['users'][user_id_str]['balance'] = current_balance + amount
+            self._save()
+            return True
+    
+    def deduct_balance(self, user_id: int, amount: float) -> bool:
+        """Deduct balance from user account
+        Args:
+            user_id: User's Telegram ID
+            amount: Amount to deduct
+        Returns:
+            True if successful, False if insufficient balance
+        """
+        with self._lock:
+            current_balance = self.get_user_balance(user_id)
+            if current_balance < amount:
+                return False
+            
+            user_id_str = str(user_id)
+            self.data['users'][user_id_str]['balance'] = current_balance - amount
+            self._save()
+            return True
+    
+    # MC/Visa card specific methods
+    def add_mc_numeric_card(self, quantity: int = 1, price: float = 20.0) -> List[int]:
+        """Add MC numeric gift cards
+        Args:
+            quantity: Number of cards to add
+            price: Price per card (default: 20.0)
+        Returns:
+            List of card IDs
+        """
+        card_ids = []
+        for i in range(quantity):
+            card_number = self.generate_card_number('mc')
+            exp_date = self.generate_expiration_date()
+            pin = self.generate_pin(3)
+            code = self.generate_card_code('MC', 12)
+            
+            card_id = self.add_gift_card(
+                name=f"MC Gift Card ${price:.0f}",
+                description="Mastercard Numeric Gift Card",
+                price=price,
+                category="MC Numeric",
+                code=code,
+                card_number=card_number,
+                exp_date=exp_date,
+                pin=pin,
+                stock=1
+            )
+            card_ids.append(card_id)
+        return card_ids
+    
+    def add_visa_numeric_card(self, quantity: int = 1, price: float = 20.0) -> List[int]:
+        """Add Visa numeric gift cards
+        Args:
+            quantity: Number of cards to add
+            price: Price per card (default: 20.0)
+        Returns:
+            List of card IDs
+        """
+        card_ids = []
+        for i in range(quantity):
+            card_number = self.generate_card_number('visa')
+            exp_date = self.generate_expiration_date()
+            pin = self.generate_pin(3)
+            code = self.generate_card_code('VISA', 12)
+            
+            card_id = self.add_gift_card(
+                name=f"Visa Gift Card ${price:.0f}",
+                description="Visa Numeric Gift Card",
+                price=price,
+                category="Visa Numeric",
+                code=code,
+                card_number=card_number,
+                exp_date=exp_date,
+                pin=pin,
+                stock=1
+            )
+            card_ids.append(card_id)
+        return card_ids
+    
+    def add_mc_picture_card(self, card_id_num: int, price: float = 50.0) -> int:
+        """Add MC picture gift card
+        Args:
+            card_id_num: ID number for image file naming
+            price: Price per card (default: 50.0)
+        Returns:
+            Card ID
+        """
+        card_number = self.generate_card_number('mc')
+        exp_date = self.generate_expiration_date()
+        pin = self.generate_pin(3)
+        code = self.generate_card_code('MC-PIC', 12)
+        
+        return self.add_gift_card(
+            name=f"MC Gift Card Picture ${price:.0f}",
+            description="Mastercard Picture Gift Card",
+            price=price,
+            category="MC Picture",
+            code=code,
+            card_number=card_number,
+            exp_date=exp_date,
+            pin=pin,
+            image_front=f"/giftcards/mc{card_id_num}front.jpg",
+            image_back=f"/giftcards/mc{card_id_num}back.jpg",
+            stock=1
+        )
+    
+    def add_visa_picture_card(self, card_id_num: int, price: float = 50.0) -> int:
+        """Add Visa picture gift card
+        Args:
+            card_id_num: ID number for image file naming
+            price: Price per card (default: 50.0)
+        Returns:
+            Card ID
+        """
+        card_number = self.generate_card_number('visa')
+        exp_date = self.generate_expiration_date()
+        pin = self.generate_pin(3)
+        code = self.generate_card_code('VISA-PIC', 12)
+        
+        return self.add_gift_card(
+            name=f"Visa Gift Card Picture ${price:.0f}",
+            description="Visa Picture Gift Card",
+            price=price,
+            category="Visa Picture",
+            code=code,
+            card_number=card_number,
+            exp_date=exp_date,
+            pin=pin,
+            image_front=f"/giftcards/visa{card_id_num}front.jpg",
+            image_back=f"/giftcards/visa{card_id_num}back.jpg",
+            stock=1
+        )
+    
+    def purchase_cards_by_quantity(self, user_id: int, card_type: str, quantity: int) -> tuple[bool, str, List[Dict]]:
+        """Purchase cards by quantity with balance deduction
+        Args:
+            user_id: User's Telegram ID
+            card_type: 'mc_numeric', 'visa_numeric', 'mc_picture', or 'visa_picture'
+            quantity: Number of cards to purchase
+        Returns:
+            (success, message, list of purchased cards)
+        """
+        # Calculate total price
+        if card_type in ['mc_numeric', 'visa_numeric']:
+            price_per_card = 20.0
+            category = "MC Numeric" if card_type == 'mc_numeric' else "Visa Numeric"
+        elif card_type in ['mc_picture', 'visa_picture']:
+            price_per_card = 50.0
+            category = "MC Picture" if card_type == 'mc_picture' else "Visa Picture"
+        else:
+            return False, "Invalid card type", []
+        
+        total_price = price_per_card * quantity
+        
+        # Check balance
+        user_balance = self.get_user_balance(user_id)
+        if user_balance < total_price:
+            return False, f"Insufficient balance. Required: ${total_price:.2f}, Available: ${user_balance:.2f}", []
+        
+        # Get available cards of the requested type
+        available_cards = self.get_cards_by_category(category, status='available')
+        if len(available_cards) < quantity:
+            return False, f"Not enough cards in stock. Available: {len(available_cards)}, Requested: {quantity}", []
+        
+        # Deduct balance
+        if not self.deduct_balance(user_id, total_price):
+            return False, "Failed to deduct balance", []
+        
+        # Mark cards as sold and record purchases
+        purchased_cards = []
+        for i in range(quantity):
+            card = available_cards[i]
+            if self.mark_as_sold(card['id'], user_id):
+                self.add_gift_card_purchase(user_id, card)
+                self.add_order(user_id, card['id'], card['price'])
+                purchased_cards.append(card)
+        
+        return True, f"Successfully purchased {len(purchased_cards)} cards", purchased_cards

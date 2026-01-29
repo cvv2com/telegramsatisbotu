@@ -1,365 +1,580 @@
-# Gift Card System Enhancement - Implementation Summary
+# 📖 Implementation Details - MC/Visa Gift Card System
 
-## Overview
-This document summarizes the implementation of the gift card system enhancements for the Telegram Sales Bot.
+Bu dokümanda MC/Visa Gift Card Bot'un teknik detaylarını, mimari kararları ve implementasyon detaylarını bulabilirsiniz.
 
-## ✅ Implemented Requirements
+## 🏗️ Sistem Mimarisi
 
-### 1. Database Schema ✅
-**Requirement**: Implement/Ensure the creation of a new table named `gift_card_purchases`.
+### Genel Bakış
 
-**Implementation**:
-- Added `gift_card_purchases` array to JSON database structure
-- Schema includes:
-  - `id`: Unique purchase identifier
-  - `user_id`: Telegram user ID of buyer
-  - `card_id`: Reference to gift card
-  - `card_name`: Name of purchased card
-  - `card_number`: Full card number delivered to user
-  - `exp_date`: Expiration date delivered to user
-  - `pin`: PIN code delivered to user
-  - `amount`: Purchase amount
-  - `purchased_at`: Timestamp of purchase
-
-**Methods**:
-- `add_gift_card_purchase(user_id, card)`: Record a purchase
-- `get_user_purchases(user_id)`: Retrieve user's purchase history
-
-**Backward Compatibility**: 
-- Automatically initializes `gift_card_purchases` array if not present
-- Existing databases work without modification
-
-### 2. Asset Management ✅
-**Requirement**: Implement logic to handle "Front face" and "Back face" images.
-
-**Implementation**:
-- Added `image_front` field for front face images
-- Added `image_back` field for optional back face images
-- Legacy `image_url` field maintained for backward compatibility
-- Helper method `get_card_images(card)` supports both formats:
-  - Returns dictionary with 'front' and 'back' keys
-  - Automatically handles legacy single-image format
-  - Works seamlessly with both old and new card formats
-
-**Example**:
-```python
-# New format
-card = {
-    'image_front': 'path/to/front.jpg',
-    'image_back': 'path/to/back.jpg'
-}
-
-# Legacy format (still works)
-card = {
-    'image_url': 'path/to/image.jpg'
-}
-
-# Get images (works for both)
-images = db.get_card_images(card)
-# Returns: {'front': '...', 'back': '...'}
+```
+┌─────────────────┐
+│  Telegram User  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  telegram_bot.py│ ◄─── Ana bot uygulaması
+└────────┬────────┘
+         │
+         ├──────► ┌─────────────┐
+         │        │ database.py │ ◄─── Veri yönetimi
+         │        └─────────────┘
+         │
+         ├──────► ┌────────────────┐
+         │        │translations.py │ ◄─── Çoklu dil
+         │        └────────────────┘
+         │
+         └──────► ┌──────────┐
+                  │config.py │ ◄─── Ayarlar
+                  └──────────┘
 ```
 
-### 3. Card Generation Logic ✅
-**Requirement**: Implement logic to generate unique Card Number, Expiration Date, and PIN code.
+### Dosya Yapısı
 
-**Implementation**:
+#### telegram_bot.py
+Ana Telegram bot uygulaması. Python-telegram-bot kütüphanesi kullanır.
 
-#### 3.1 Card Number Generation
-- Method: `generate_card_number(card_type='visa')`
-- Supports: Visa, Mastercard, Amex, Discover
-- Uses proper BIN (Bank Identification Number) prefixes:
-  - Visa: starts with 4
-  - Mastercard: starts with 51-55
-  - Amex: starts with 34 or 37
-  - Discover: starts with 6011 or 65
-- Generates 16-digit numbers (15 for Amex)
-- Random and unique for each generation
+**Önemli fonksiyonlar:**
+- `start()`: Kullanıcıyı karşılar, ana menüyü gösterir
+- `buy_cards_start()`: Kart satın alma akışını başlatır
+- `view_balance()`: Kullanıcı bakiyesini gösterir
+- `purchase_confirmed()`: Satın alma işlemini tamamlar
 
-#### 3.2 Expiration Date Generation
-- Method: `generate_expiration_date(months_valid=24)`
-- Default: 24 months from current date
-- Format: MM/YY
-- Configurable validity period
+**Conversation States:**
+```python
+SELECTING_CARD_TYPE = 0   # Kart türü seçimi
+ENTERING_QUANTITY = 1      # Adet girişi
+CONFIRMING_PURCHASE = 2    # Onay
+ENTERING_BALANCE = 3       # Bakiye girişi
+```
 
-#### 3.3 PIN Code Generation
-- Method: `generate_pin(length=4)`
-- Default: 4-digit PIN
-- Configurable length (3-4 digits recommended)
-- Random secure generation
+#### database.py
+JSON tabanlı veritabanı yönetimi. Thread-safe işlemler için lock kullanır.
 
-#### 3.4 Card Code Generation
-- Method: `generate_card_code(prefix='GC', length=12)`
-- Generates unique alphanumeric codes
-- Customizable prefix and length
-- Uses uppercase letters and digits
+**Veri Yapısı:**
+```json
+{
+  "gift_cards": [
+    {
+      "id": 1,
+      "name": "MC Gift Card $20",
+      "price": 20.0,
+      "category": "MC Numeric",
+      "card_number": "5123456789012345",
+      "exp_date": "12/25",
+      "pin": "123",
+      "status": "available",
+      "stock": 1
+    }
+  ],
+  "users": {
+    "123456789": {
+      "balance": 100.0,
+      "language": "tr"
+    }
+  },
+  "gift_card_purchases": [...],
+  "orders": [...]
+}
+```
 
-**Auto-Generation**:
-- When adding a card, if `card_number`, `exp_date`, or `pin` are not provided, they are automatically generated
-- This makes card creation seamless and quick
-- Manual override available for specific requirements
+**Önemli metodlar:**
+- `generate_card_number(card_type)`: Kart numarası üretir
+- `add_mc_numeric_card(quantity)`: MC numerik kartlar ekler
+- `purchase_cards_by_quantity(user_id, card_type, quantity)`: Satın alma işlemi
+- `get_user_balance(user_id)`: Kullanıcı bakiyesi
 
-### 4. Configuration ✅
-**Requirement**: Update `config.py` to include necessary configurations.
+#### config.py
+Sistem konfigürasyonu.
 
-**Implementation**:
-Added `GIFT_CARD_CONFIG` dictionary with:
+**Önemli ayarlar:**
 ```python
 GIFT_CARD_CONFIG = {
-    "auto_generate": True,  # Enable/disable auto-generation
-    "default_card_type": "visa",  # Default card type for generation
-    "default_validity_months": 24,  # Default validity period
-    "default_pin_length": 4,  # Default PIN length
-    "code_prefix": "GC",  # Prefix for auto-generated codes
+    "minimum_balance": 20.0,
+    "numeric_card_price": 20.0,
+    "picture_card_price": 50.0,
+    "pin_length": 3
 }
 ```
 
-Updated `GIFT_CARDS` documentation:
-- Documented auto-generation capabilities
-- Explained optional vs required fields
-- Maintained legacy format examples
-- Added comments for both manual and auto-generated options
+#### translations.py
+Çoklu dil desteği. Türkçe ve İngilizce.
 
-### 5. Documentation ✅
-**Requirement**: Update documentation to explain new features and migration steps.
-
-**Implementation**:
-
-#### Updated README.md:
-1. **New Features Section** (at beginning):
-   - Automated card generation documentation
-   - Gift card purchase tracking explanation
-   - Front/back image support details
-   - Configuration options
-   - Usage examples
-
-2. **Migration Guide** (existing content):
-   - Already included step-by-step migration instructions
-   - Database update procedures
-   - Image preparation guidelines
-   - Testing procedures
-
-3. **Testing Section**:
-   - Added test script documentation
-   - Test validation checklist
-   - Success criteria
-
-#### Created Additional Documentation:
-1. **test_gift_card_system.py**: Comprehensive test suite
-2. **integration_example.py**: Complete integration guide with examples
-
-### 6. Legacy Support ✅
-**Requirement**: Ensure code supports both old and new formats.
-
-**Implementation**:
-
-#### Backward Compatibility Features:
-1. **Image Formats**:
-   - `image_url` (legacy) still fully supported
-   - `image_front`/`image_back` (new) work alongside legacy
-   - `get_card_images()` helper handles both seamlessly
-
-2. **Database Migration**:
-   - Old databases load without modification
-   - New fields initialized automatically if missing
-   - Existing cards work without changes
-
-3. **Card Structure**:
-   - Old cards without card_number/exp_date/pin still function
-   - New fields are optional
-   - Auto-generation fills in missing fields on demand
-
-4. **API Compatibility**:
-   - `add_gift_card()` accepts both old and new parameters
-   - All new parameters are optional
-   - Method signature backward compatible
-
-#### Test Results:
-```
-✅ Loading old format database
-✅ Old card still accessible
-✅ Image compatibility (legacy → new)
-✅ New card added to old database
-✅ Backward compatibility tests passed!
-```
-
-## 🎯 Key Features
-
-### Auto-Generation System
-- **Zero Configuration**: Cards can be added with just basic info
-- **Intelligent Defaults**: Sensible defaults for all generated fields
-- **Override Capable**: Manual values always take precedence
-- **Unique Values**: Each generation produces unique values
-
-### Purchase Tracking
-- **Complete History**: Full card details stored per purchase
-- **User-Specific**: Easy retrieval of user's purchase history
-- **Audit Trail**: Timestamp and amount tracking
-- **Security**: Sensitive data properly stored
-
-### Image Management
-- **Flexible Format**: Support for both single and dual images
-- **Legacy Compatible**: Old single-image format works
-- **New Enhanced**: Front/back separation for better UX
-- **Graceful Degradation**: Works even without images
-
-### Configuration
-- **Centralized**: All settings in one place (config.py)
-- **Documented**: Clear explanations for each option
-- **Flexible**: Easy to customize per deployment
-- **Sensible Defaults**: Works out of the box
-
-## 📊 Code Statistics
-
-### Files Modified:
-- `database.py`: +200 lines (generation logic, purchase tracking, image handling)
-- `config.py`: +12 lines (new configuration section)
-- `README.md`: +80 lines (new features documentation)
-
-### Files Created:
-- `test_gift_card_system.py`: Comprehensive test suite (336 lines)
-- `integration_example.py`: Integration guide (276 lines)
-- `IMPLEMENTATION_SUMMARY.md`: This document
-
-### Test Coverage:
-- ✅ 100% of new functionality tested
-- ✅ Backward compatibility verified
-- ✅ All tests passing
-
-## 🔒 Security Considerations
-
-### Implementation:
-1. **Random Generation**: Uses Python's `random` module for card details
-2. **Secure Storage**: Purchase records stored securely in database
-3. **No Secrets Exposed**: Generated cards are for demonstration/testing
-4. **Thread-Safe**: All database operations use locking
-
-### Recommendations for Production:
-1. Use cryptographically secure random generation
-2. Encrypt card details at rest
-3. Implement access controls for purchase history
-4. Add audit logging for sensitive operations
-5. Consider using real payment gateway for actual cards
-
-## 🚀 Usage Examples
-
-### Basic Usage (Auto-Generation):
+**Kullanım:**
 ```python
-db = GiftCardDB('cards.db.json')
+from translations import get_text
+text = get_text('welcome', 'tr', name="Ali")
+```
 
-# Add card with auto-generated details
-card_id = db.add_gift_card(
-    name="Steam $50",
-    description="Gaming card",
-    price=50.0,
-    category="Gaming",
-    code="STEAM-001",
-    stock=10
+## 💳 Kart Üretim Sistemi
+
+### MC (Mastercard) Kartlar
+
+**BIN (Bank Identification Number):** 5 ile başlar
+
+```python
+def generate_card_number(card_type='mc'):
+    prefix = '5'  # MC kartlar 5 ile başlar
+    remaining = generate_random_digits(15)
+    return prefix + remaining
+```
+
+**Örnek:**
+- Kart No: `5548223511489855`
+- SKT: `02/27`
+- PIN: `353`
+
+### Visa Kartlar
+
+**BIN:** 4 ile başlar
+
+```python
+def generate_card_number(card_type='visa'):
+    prefix = '4'  # Visa kartlar 4 ile başlar
+    remaining = generate_random_digits(15)
+    return prefix + remaining
+```
+
+**Örnek:**
+- Kart No: `4548223511489855`
+- SKT: `02/23`
+- PIN: `090`
+
+### SKT (Son Kullanma Tarihi)
+
+MM/YY formatında, varsayılan 24 ay sonra:
+
+```python
+def generate_expiration_date(months_valid=24):
+    exp_date = datetime.now() + timedelta(days=months_valid * 30)
+    return exp_date.strftime('%m/%y').upper()
+```
+
+### PIN Kodu
+
+3 haneli rastgele:
+
+```python
+def generate_pin(length=3):
+    return ''.join([str(random.randint(0, 9)) for _ in range(length)])
+```
+
+## 🔐 Güvenlik Konuları
+
+### 1. Rastgele Sayı Üretimi
+
+**Mevcut:** `random` modülü (test için)
+```python
+import random
+pin = ''.join([str(random.randint(0, 9)) for _ in range(3)])
+```
+
+**Üretim için önerilen:** `secrets` modülü
+```python
+import secrets
+pin = ''.join([str(secrets.randbelow(10)) for _ in range(3)])
+```
+
+### 2. Bot Token Güvenliği
+
+- `config.py` dosyasını `.gitignore`'a ekleyin
+- Environment variables kullanın:
+  ```python
+  import os
+  BOT_TOKEN = os.getenv('BOT_TOKEN')
+  ```
+
+### 3. Admin Yetkilendirme
+
+Her admin komutunda kontrol:
+```python
+if user_id not in ADMIN_IDS:
+    return "Unauthorized"
+```
+
+### 4. Veritabanı Thread Safety
+
+Lock kullanımı:
+```python
+with self._lock:
+    # Critical section
+    self.data['users'][user_id]['balance'] += amount
+    self._save()
+```
+
+## 💰 Bakiye Sistemi
+
+### Bakiye Yönetimi
+
+**Akış:**
+1. Kullanıcı bakiye yükleme isteği gönderir
+2. Bot ödeme bilgileri gösterir (simülasyon)
+3. Admin/sistem bakiye onaylar
+4. `add_balance(user_id, amount)` çağrılır
+
+**Gerçek implementasyon için:**
+- Stripe/PayPal webhook'ları
+- Kripto para gateway entegrasyonu
+- Manuel onay sistemi
+
+### Bakiye Kontrolü
+
+Satın alma öncesi:
+```python
+balance = db.get_user_balance(user_id)
+total_price = quantity * price_per_card
+
+if balance < total_price:
+    return "Insufficient balance"
+```
+
+### Bakiye Kesintisi
+
+Atomik işlem:
+```python
+with self._lock:
+    if current_balance < amount:
+        return False
+    self.data['users'][user_id]['balance'] -= amount
+    self._save()
+    return True
+```
+
+## 🛒 Satın Alma Akışı
+
+### 1. Kart Türü Seçimi
+
+```
+┌─────────────────────┐
+│  🎁 Kart Satın Al   │
+└──────────┬──────────┘
+           │
+           ├──► 💳 MC Numerik ($20)
+           ├──► 💳 Visa Numerik ($20)
+           ├──► 🖼️ MC Resimli ($50)
+           └──► 🖼️ Visa Resimli ($50)
+```
+
+### 2. Adet Girişi
+
+Kullanıcıdan metin input:
+```python
+quantity = int(update.message.text)
+total = quantity * price_per_card
+```
+
+### 3. Bakiye Kontrolü
+
+```python
+if balance < total:
+    show_insufficient_balance_message()
+    return
+```
+
+### 4. Stok Kontrolü
+
+```python
+available = db.get_cards_by_category(category, status='available')
+if len(available) < quantity:
+    show_insufficient_stock_message()
+    return
+```
+
+### 5. Onay
+
+Inline keyboard ile:
+```
+┌─────────────────────────────┐
+│ Toplam: $40                 │
+│ Kalan bakiye: $60           │
+│                             │
+│ [✅ Onayla]  [❌ İptal]    │
+└─────────────────────────────┘
+```
+
+### 6. İşlem
+
+```python
+success, message, cards = db.purchase_cards_by_quantity(
+    user_id, 
+    card_type, 
+    quantity
 )
-# card_number, exp_date, pin automatically generated
+
+if success:
+    # Kart bilgilerini gönder
+    for card in cards:
+        send_card_details(card)
 ```
 
-### Advanced Usage (Manual Details):
-```python
-# Add card with specific details
-card_id = db.add_gift_card(
-    name="Amazon $100",
-    description="Shopping card",
-    price=100.0,
-    category="Shopping",
-    code="AMZ-001",
-    card_number="4111111111111111",
-    exp_date="12/25",
-    pin="1234",
-    image_front="images/front.jpg",
-    image_back="images/back.jpg",
-    stock=5
-)
+## 🖼️ Resimli Kart Sistemi
+
+### Görsel Yönetimi
+
+**Dosya isimlendirme:**
+```
+giftcards/
+├── mc1front.jpg      # MC kart 1 ön yüz
+├── mc1back.jpg       # MC kart 1 arka yüz
+├── visa1front.jpg    # Visa kart 1 ön yüz
+└── visa1back.jpg     # Visa kart 1 arka yüz
 ```
 
-### Purchase Flow:
+### Kart Ekleme
+
 ```python
-# Process purchase
-user_id = 123456789
-card = db.get_card_by_id(card_id)
-
-# Mark as sold
-db.mark_as_sold(card_id, user_id)
-
-# Record purchase with details
-purchase_id = db.add_gift_card_purchase(user_id, card)
-
-# Retrieve purchase details
-purchases = db.get_user_purchases(user_id)
-for p in purchases:
-    print(f"Card: {p['card_number']}")
-    print(f"Expires: {p['exp_date']}")
-    print(f"PIN: {p['pin']}")
+card_id = db.add_mc_picture_card(1)
+# Otomatik paths:
+# image_front: /giftcards/mc1front.jpg
+# image_back: /giftcards/mc1back.jpg
 ```
 
-### Image Handling:
+### Görsel Gösterimi
+
 ```python
-# Works with both formats
-card = db.get_card_by_id(card_id)
 images = db.get_card_images(card)
-
 if images['front']:
-    # Send front image
-    pass
+    await bot.send_photo(photo=images['front'])
 if images['back']:
-    # Send back image
+    await bot.send_photo(photo=images['back'])
+```
+
+## 📊 İstatistikler ve Raporlama
+
+### Admin İstatistikleri
+
+```python
+mc_numeric_available = len([c for c in mc_numeric if c['status'] == 'available'])
+mc_numeric_sold = len([c for c in mc_numeric if c['status'] == 'sold'])
+revenue = sum(c['price'] for c in all_cards if c['status'] == 'sold')
+```
+
+### Satın Alma Geçmişi
+
+Her satın alma kaydedilir:
+```python
+purchase = {
+    'id': purchase_id,
+    'user_id': user_id,
+    'card_id': card_id,
+    'card_number': card['card_number'],
+    'exp_date': card['exp_date'],
+    'pin': card['pin'],
+    'amount': card['price'],
+    'purchased_at': datetime.now().isoformat()
+}
+```
+
+## 🌐 Çoklu Dil Desteği
+
+### Dil Seçimi
+
+Kullanıcı tercihi veritabanında saklanır:
+```python
+db.set_user_language(user_id, 'tr')  # veya 'en'
+```
+
+### Metin Getirme
+
+```python
+lang = db.get_user_language(user_id)
+text = get_text('welcome', lang, name=user.first_name)
+```
+
+### Yeni Dil Ekleme
+
+`translations.py`'ye ekleyin:
+```python
+TRANSLATIONS = {
+    'tr': {...},
+    'en': {...},
+    'es': {  # Yeni dil
+        'welcome': '¡Bienvenido {name}!',
+        ...
+    }
+}
+```
+
+## 🔧 Bakım ve Güncelleme
+
+### Veritabanı Yedekleme
+
+```bash
+# JSON dosyasını kopyala
+cp gift_cards.db.json gift_cards.db.json.backup
+
+# Otomatik yedekleme (cron)
+0 0 * * * cp /path/to/gift_cards.db.json /backups/$(date +\%Y\%m\%d).json
+```
+
+### Log Yönetimi
+
+Bot log seviyesi ayarı:
+```python
+logging.basicConfig(
+    level=logging.INFO,  # veya DEBUG, WARNING
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+```
+
+### Performans İzleme
+
+```python
+import time
+
+@functools.wraps(f)
+def timed(f):
+    start = time.time()
+    result = f(*args, **kwargs)
+    logger.info(f"{f.__name__} took {time.time()-start:.2f}s")
+    return result
+```
+
+## 📈 Ölçeklendirme Önerileri
+
+### 1. Veritabanı
+
+JSON yerine:
+- SQLite: Orta ölçek (1000+ kullanıcı)
+- PostgreSQL: Büyük ölçek (10000+ kullanıcı)
+- Redis: Cache katmanı
+
+### 2. Asenkron İşlemler
+
+Uzun işlemler için:
+```python
+async def long_operation():
+    await asyncio.sleep(1)  # Simüle edilmiş işlem
+    return result
+```
+
+### 3. Queue Sistemi
+
+Celery ile arka plan işleri:
+```python
+@celery.task
+def generate_bulk_cards(quantity):
+    # Arka planda çalışır
     pass
 ```
 
-## ✅ Verification
+### 4. CDN
 
-### How to Verify Implementation:
-```bash
-# Run comprehensive tests
-python test_gift_card_system.py
+Görsel dosyalar için:
+- AWS S3 + CloudFront
+- Cloudinary
+- imgix
 
-# Run integration example
-python integration_example.py
+## 🧪 Test Önerileri
+
+### Unit Tests
+
+```python
+def test_card_generation():
+    card_num = generate_card_number('mc')
+    assert card_num[0] == '5'
+    assert len(card_num) == 16
+
+def test_balance_deduction():
+    db.add_balance(user_id, 100)
+    assert db.deduct_balance(user_id, 50) == True
+    assert db.get_user_balance(user_id) == 50
 ```
 
-### Expected Results:
+### Integration Tests
+
+```python
+def test_purchase_flow():
+    # Bakiye ekle
+    db.add_balance(user_id, 100)
+    
+    # Kart ekle
+    db.add_mc_numeric_card(5)
+    
+    # Satın al
+    success, msg, cards = db.purchase_cards_by_quantity(
+        user_id, 'mc_numeric', 2
+    )
+    
+    assert success == True
+    assert len(cards) == 2
+    assert db.get_user_balance(user_id) == 60
 ```
-✅ Card generation tests passed!
-✅ Database operation tests passed!
-✅ Backward compatibility tests passed!
-✅ ALL TESTS PASSED!
+
+## 📞 Sorun Giderme
+
+### Debug Modu
+
+```python
+# telegram_bot.py
+logging.basicConfig(level=logging.DEBUG)
+
+# Detaylı loglar
+logger.debug(f"User {user_id} balance: {balance}")
+logger.debug(f"Available cards: {len(available_cards)}")
 ```
 
-## 📝 Migration Guide
+### Yaygın Hatalar
 
-### For Existing Installations:
-1. **Backup Database**: `cp gift_cards.db.json gift_cards.db.json.backup`
-2. **Update Code**: Pull latest changes
-3. **Run Tests**: `python test_gift_card_system.py`
-4. **Restart Bot**: No configuration changes required
-5. **Verify**: Check that old cards still work
+1. **"Bot token invalid"**
+   - Token'ı config.py'de kontrol edin
+   - Boşluk veya satır sonu yok
 
-### No Breaking Changes:
-- ✅ Existing cards remain functional
-- ✅ Existing purchases intact
-- ✅ No database migration needed
-- ✅ Old API calls still work
+2. **"Database permission denied"**
+   - JSON dosya yazma izni
+   - `chmod 644 gift_cards.db.json`
 
-## 🎉 Conclusion
+3. **"Conversation timeout"**
+   - ConversationHandler timeout ayarı
+   - Kullanıcıdan input bekleme süresi
 
-All requirements have been successfully implemented:
-- ✅ Database schema with gift_card_purchases table
-- ✅ Asset management for front/back images
-- ✅ Card generation logic (number, expiration, PIN)
-- ✅ Configuration updates
-- ✅ Documentation updates
-- ✅ Legacy format support
+## 🚀 İleri Seviye Özellikler
 
-The implementation is:
-- **Production-Ready**: Fully tested and documented
-- **Backward Compatible**: Works with existing databases
-- **Well-Tested**: Comprehensive test suite included
-- **Well-Documented**: README, examples, and this summary
-- **Flexible**: Supports both auto-generation and manual input
-- **Secure**: Thread-safe operations, proper data handling
+### Webhook Modu
 
-The system is ready for deployment and use.
+Polling yerine webhook:
+```python
+application.run_webhook(
+    listen='0.0.0.0',
+    port=8443,
+    url_path='bot',
+    webhook_url='https://yourdomain.com/bot'
+)
+```
+
+### Ödeme Gateway Entegrasyonu
+
+```python
+async def process_payment(user_id, amount):
+    # Stripe örneği
+    intent = stripe.PaymentIntent.create(
+        amount=int(amount * 100),
+        currency='usd'
+    )
+    return intent.client_secret
+```
+
+### Rate Limiting
+
+```python
+from functools import wraps
+import time
+
+def rate_limit(max_per_minute=5):
+    def decorator(f):
+        calls = []
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            now = time.time()
+            calls[:] = [c for c in calls if c > now - 60]
+            if len(calls) >= max_per_minute:
+                raise Exception("Rate limit exceeded")
+            calls.append(now)
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+```
+
+---
+
+**Bu dokümantasyon sürekli güncellenmektedir. Katkılarınızı bekliyoruz!**
