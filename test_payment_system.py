@@ -107,8 +107,10 @@ def test_database_payment_functions():
     print("Testing Database Payment Functions")
     print("=" * 70)
     
-    # Create test database
-    test_db_file = tempfile.mktemp(suffix='.json')
+    # Create test database using NamedTemporaryFile for security
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        test_db_file = tmp.name
+    
     db = GiftCardDB(test_db_file)
     
     try:
@@ -230,8 +232,10 @@ def test_payment_handler():
     print("Testing Payment Handler")
     print("=" * 70)
     
-    # Create test database
-    test_db_file = tempfile.mktemp(suffix='.json')
+    # Create test database using NamedTemporaryFile for security
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        test_db_file = tmp.name
+    
     db = GiftCardDB(test_db_file)
     
     # Mock config
