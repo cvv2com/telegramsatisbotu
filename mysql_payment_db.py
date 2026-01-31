@@ -371,6 +371,38 @@ class MySQLPaymentDB:
             logger.error(f"Error adding notification: {e}")
             return False
     
+    def ensure_user_balance(self, user_id: int) -> bool:
+        """Ensure user balance record exists
+        
+        Args:
+            user_id: Telegram user ID
+            
+        Returns:
+            True if record exists or was created
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Check if user balance exists
+                query = "SELECT balance FROM user_balances WHERE user_id = %s"
+                cursor.execute(query, (user_id,))
+                result = cursor.fetchone()
+                
+                if not result:
+                    # Create new balance record
+                    cursor.execute(
+                        "INSERT INTO user_balances (user_id, balance) VALUES (%s, 0.00)",
+                        (user_id,)
+                    )
+                    conn.commit()
+                
+                return True
+                
+        except Error as e:
+            logger.error(f"Error ensuring user balance: {e}")
+            return False
+    
     def get_user_balance(self, user_id: int) -> float:
         """Get user's current balance
         
@@ -391,12 +423,8 @@ class MySQLPaymentDB:
                 if result:
                     return float(result[0])
                 else:
-                    # Create new balance record
-                    cursor.execute(
-                        "INSERT INTO user_balances (user_id, balance) VALUES (%s, 0.00)",
-                        (user_id,)
-                    )
-                    conn.commit()
+                    # Create new balance record if it doesn't exist
+                    self.ensure_user_balance(user_id)
                     return 0.0
                 
         except Error as e:
@@ -419,7 +447,7 @@ class MySQLPaymentDB:
                 cursor = conn.cursor()
                 
                 # Ensure user balance record exists
-                self.get_user_balance(user_id)
+                self.ensure_user_balance(user_id)
                 
                 if operation == 'add':
                     query = """

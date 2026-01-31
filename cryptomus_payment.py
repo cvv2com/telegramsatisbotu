@@ -37,17 +37,23 @@ class CryptomusPayment:
     def _generate_signature(self, data: dict) -> str:
         """Generate signature for API request
         
+        Note: Cryptomus API requires MD5 for signature generation.
+        While MD5 is cryptographically broken for collision resistance,
+        it is acceptable here as it's used for HMAC (keyed-hash message 
+        authentication) which is still secure even with MD5.
+        This is a vendor requirement, not a design choice.
+        
         Args:
             data: Request payload dictionary
             
         Returns:
-            HMAC-SHA256 signature
+            HMAC-MD5 signature
         """
         # Convert data to JSON string and encode
         json_string = json.dumps(data, separators=(',', ':'), ensure_ascii=False)
         message = json_string.encode('utf-8')
         
-        # Create HMAC signature
+        # Create HMAC signature (Cryptomus requirement: MD5)
         signature = hmac.new(
             self.payment_api_key.encode('utf-8'),
             message,
@@ -177,6 +183,11 @@ class CryptomusPayment:
     def verify_webhook_signature(self, request_data: bytes, signature: str) -> bool:
         """Verify webhook signature from Cryptomus
         
+        Note: Cryptomus uses MD5 for webhook signatures.
+        While MD5 is cryptographically broken for collision resistance,
+        HMAC-MD5 is still considered secure for message authentication.
+        This is a vendor requirement.
+        
         Args:
             request_data: Raw request body (bytes)
             signature: Signature from 'sign' header
@@ -185,7 +196,7 @@ class CryptomusPayment:
             True if signature is valid
         """
         try:
-            # Calculate expected signature
+            # Calculate expected signature (Cryptomus requirement: MD5)
             expected_signature = hmac.new(
                 self.payment_api_key.encode('utf-8'),
                 request_data,

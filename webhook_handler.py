@@ -7,6 +7,7 @@ Flask server to handle Cryptomus payment webhooks
 
 import logging
 import json
+import asyncio
 from flask import Flask, request, jsonify
 from telegram import Bot
 from cryptomus_payment import CryptomusPayment
@@ -143,12 +144,8 @@ def cryptomus_webhook():
                 )
                 
                 # Send notification asynchronously
-                import asyncio
                 try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    loop.run_until_complete(send_telegram_notification(user_id, notification_message))
-                    loop.close()
+                    asyncio.run(send_telegram_notification(user_id, notification_message))
                     
                     # Log notification
                     mysql_db.add_notification(
@@ -178,12 +175,8 @@ def cryptomus_webhook():
             )
             
             # Send notification asynchronously
-            import asyncio
             try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(send_telegram_notification(user_id, notification_message))
-                loop.close()
+                asyncio.run(send_telegram_notification(user_id, notification_message))
                 
                 # Log notification
                 mysql_db.add_notification(

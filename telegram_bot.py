@@ -532,10 +532,12 @@ async def payment_amount_entered(update: Update, context: ContextTypes.DEFAULT_T
         
         currency = context.user_data.get('payment_currency', 'btc').upper()
         
-        # Create payment with Cryptomus
-        # Note: webhook_url should be your actual webhook endpoint
-        # For development, you can use ngrok or a similar service
-        webhook_url = "https://your-domain.com/webhook/cryptomus"  # TODO: Update with actual URL
+        # Get webhook URL from environment or config
+        import os
+        webhook_url = os.getenv('WEBHOOK_URL', 'https://your-domain.com/webhook/cryptomus')
+        if webhook_url == 'https://your-domain.com/webhook/cryptomus':
+            logger.warning("WEBHOOK_URL not configured in environment variables")
+        
         return_url = "https://t.me/your_bot"  # Optional return URL
         
         await update.message.reply_text("⏳ Ödeme oluşturuluyor...", parse_mode='Markdown')
@@ -557,7 +559,7 @@ async def payment_amount_entered(update: Update, context: ContextTypes.DEFAULT_T
         network_text = f" ({payment_info['network']})" if payment_info.get('network') else ""
         
         text = (
-            f"✅ **Ödeme Oluşturuldu!**\n\n"
+            f"✅ *Ödeme Oluşturuldu!*\n\n"
             f"💰 Miktar: ${amount:.2f}\n"
             f"💳 Para Birimi: {currency}{network_text}\n"
             f"📝 Sipariş No: `{payment_info['order_id']}`\n\n"
