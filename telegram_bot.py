@@ -18,7 +18,7 @@ from telegram.ext import (
 )
 from database import GiftCardDB
 from translations import get_text
-from config import BOT_TOKEN, ADMIN_IDS, GIFT_CARD_CONFIG, CRYPTOMUS_CONFIG
+from config import BOT_TOKEN, ADMIN_IDS, GIFT_CARD_CONFIG, CRYPTOMUS_CONFIG, PAYMENT_CONFIG
 from payment_handler import PaymentHandler
 from timeout_handler import TimeoutHandler
 from cryptomus_service import get_payment_service
@@ -688,7 +688,7 @@ async def admin_pending_payments(update: Update, context: ContextTypes.DEFAULT_T
     
     lang = db.get_user_language(user_id)
     
-    pending = db.get_pending_transactions()
+    pending = db.get_pending_transactions() 
     
     if not pending:
         text = get_text('no_pending_payments', lang)
@@ -786,7 +786,7 @@ async def admin_payment_stats(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     lang = db.get_user_language(user_id)
     
-    stats = db.get_payment_stats()
+    stats = db.get_payment_stats() 
     
     text = get_text('payment_stats', lang,
                    total=stats['total'],
@@ -824,12 +824,11 @@ async def payment_history_command(update: Update, context: ContextTypes.DEFAULT_
         }.get(payment['status'], '❓')
         
         text += f"{status_emoji} **${payment['amount']:.2f}** ({payment['currency']})\n"
-        text += f"   Sipariş: `{payment['order_id']}`\n"
+        text += f"   Sipariş: `/{payment['order_id']}`\n"
         text += f"   Durum: {payment['status']}\n"
         text += f"   Tarih: {payment['created_at'][:19]}\n\n"
     
     await update.message.reply_text(text, parse_mode='Markdown')
-
 
 async def admin_payment_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin: View all payments history"""
@@ -871,11 +870,12 @@ async def admin_payment_history(update: Update, context: ContextTypes.DEFAULT_TY
             'paid_over': '✅',
             'fail': '❌',
             'cancel': '❌',
+            'cancel': '❌',
         }.get(payment['status'], '❓')
         
         text += f"{status_emoji} ${payment['amount']:.2f} ({payment['currency']})\n"
         text += f"   Kullanıcı: {payment['user_id']}\n"
-        text += f"   Sipariş: `{payment['order_id']}`\n"
+        text += f"   Sipariş: `/{payment['order_id']}`\n"
         text += f"   Durum: {payment['status']}\n"
         text += f"   Tarih: {payment['created_at']}\n\n"
     
@@ -889,28 +889,29 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
+
 def main():
-    """Start the bot"""
+    """Start the bot"""  
     # Create application
-    application = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(BOT_TOKEN).build()  
     
     # Initialize timeout handler
-    payment_timeout_handler = TimeoutHandler(db, application, check_interval_minutes=PAYMENT_CONFIG.get('check_interval_minutes', 5))
+    payment_timeout_handler = TimeoutHandler(db, application, check_interval_minutes=PAYMENT_CONFIG.get('check_interval_minutes', 5))  
     
     # Start timeout handler on app startup
     async def post_init(app):
-        """Start timeout handler after bot initialization"""
+        """Start timeout handler after bot initialization"""  
         await payment_timeout_handler.start()
-        logger.info("Payment timeout handler started")
+        logger.info("Payment timeout handler started")  
     
     # Stop timeout handler on app shutdown
     async def post_shutdown(app):
-        """Stop timeout handler before bot shutdown"""
-        await payment_timeout_handler.stop()
-        logger.info("Payment timeout handler stopped")
+        """Stop timeout handler before bot shutdown"""  
+        await payment_timeout_handler.stop()  
+        logger.info("Payment timeout handler stopped")  
     
     application.post_init = post_init
-    application.post_shutdown = post_shutdown
+    application.post_shutdown = post_shutdown  
     
     # Add conversation handler for buying cards
     buy_conv_handler = ConversationHandler(
@@ -921,7 +922,7 @@ def main():
             CONFIRMING_PURCHASE: [CallbackQueryHandler(purchase_confirmed, pattern=f'^{CONFIRM_PREFIX}')],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
-    )
+    )  
     
     # Add conversation handler for adding balance
     balance_conv_handler = ConversationHandler(
@@ -930,7 +931,7 @@ def main():
             ENTERING_BALANCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_balance_amount)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
-    )
+    )  
     
     # Add conversation handler for creating payment
     payment_conv_handler = ConversationHandler(
@@ -943,7 +944,7 @@ def main():
             ENTERING_PAYMENT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, payment_amount_entered)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
-    )
+    )  
     
     # Add handlers
     application.add_handler(CommandHandler("start", start))
@@ -972,6 +973,7 @@ def main():
     # Start bot
     logger.info("Starting MC/Visa Gift Card Bot with Crypto Payment System...")
     application.run_polling()
+
 
 if __name__ == '__main__':
     main()
