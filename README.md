@@ -1,20 +1,23 @@
-# 🤖 Telegram MC/Visa Gift Card Bot - Versiyon 3.0
+# 🤖 Telegram MC/Visa Gift Card Bot - Versiyon 3.0 + Cryptomus Integration
 
-Bu proje, Telegram üzerinden otomatik olarak **MC (Mastercard) ve Visa Gift Card** satışı yapmanızı sağlayan gelişmiş bir bottur. Kullanıcılar minimum $20 bakiye yükleyerek, adet bazında gift card satın alabilir ve kart bilgilerini anında teslim alabilirler.
+Bu proje, Telegram üzerinden otomatik olarak **MC (Mastercard) ve Visa Gift Card** satışı yapmanızı sağlayan gelişmiş bir bottur. Kullanıcılar **Cryptomus** üzerinden kripto para ile ödeme yaparak (Bitcoin, Ethereum, USDT), adet bazında gift card satın alabilir ve kart bilgilerini anında teslim alabilirler.
 
 ## ✨ Özellikler
 
 - **💳 MC ve Visa Kartları:** Numerik ve resimli olmak üzere iki formatta gift card desteği
 - **🔢 Adet Bazlı Sipariş:** Kullanıcılar tutar değil, adet olarak sipariş verir
-- **💰 Bakiye Sistemi:** $20 minimum bakiye yükleme zorunluluğu
+- **💰 Kripto Ödeme Sistemi:** Cryptomus entegrasyonu ile Bitcoin, Ethereum ve USDT (TRC-20) desteği
+- **🔔 Otomatik Bildirimler:** Ödeme onaylandığında Telegram üzerinden anında bildirim
+- **📊 MySQL Veritabanı:** Kalıcı ödeme kayıtları ve detaylı geçmiş
 - **🔢 Otomatik Üretim:** 
   - MC kartları: 5 ile başlayan 16 haneli numara
   - Visa kartları: 4 ile başlayan 16 haneli numara
   - MM/YY formatında SKT
   - 3 haneli PIN kodu
 - **🖼️ Görsel Desteği:** Picture kartlar için ön ve arka yüz görselleri
-- **⚙️ Admin Paneli:** Stok ekleme, bakiye yönetimi ve istatistikler
+- **⚙️ Admin Paneli:** Stok ekleme, bakiye yönetimi, ödeme geçmişi ve istatistikler
 - **🇹🇷 Çoklu Dil:** Türkçe ve İngilizce tam dil desteği
+- **🔒 Güvenli:** Tüm API anahtarları ENV değişkenlerinde saklanır
 
 ## 💰 Fiyatlandırma
 
@@ -29,7 +32,9 @@ Bu proje, Telegram üzerinden otomatik olarak **MC (Mastercard) ve Visa Gift Car
 
 ### Gereksinimler
 - Python 3.8 veya üzeri
+- MySQL 5.7 veya üzeri
 - Bir Telegram Bot Token'ı (BotFather'dan alınır)
+- Cryptomus Merchant hesabı (https://cryptomus.com)
 
 ### Adım Adım Kurulum
 
@@ -44,11 +49,77 @@ Bu proje, Telegram üzerinden otomatik olarak **MC (Mastercard) ve Visa Gift Car
    pip install -r requirements.txt
    ```
 
-3. **Ayarları yapın:**
-   `config.py` dosyasını açın ve kendi bilgilerinizi girin:
-   - `BOT_TOKEN`: BotFather'dan aldığınız token
+3. **MySQL veritabanı kurun:**
+   ```bash
+   # MySQL'e bağlanın
+   mysql -u root -p
+   
+   # Veritabanı oluşturun
+   CREATE DATABASE telegram_sales_bot CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE USER 'botuser'@'localhost' IDENTIFIED BY 'your_password';
+   GRANT ALL PRIVILEGES ON telegram_sales_bot.* TO 'botuser'@'localhost';
+   FLUSH PRIVILEGES;
+   EXIT;
+   
+   # Tabloları oluşturun
+   python mysql_payment_db.py
+   ```
+
+4. **Cryptomus hesabı oluşturun:**
+   - https://cryptomus.com adresinden kayıt olun
+   - Merchant hesabınızı doğrulayın (KYB)
+   - API ayarlarından Merchant ID ve API Key'leri alın
+
+5. **Ayarları yapın:**
+   `.env.example` dosyasını `.env` olarak kopyalayın ve düzenleyin:
+   ```bash
+   cp .env.example .env
+   nano .env
+   ```
+   
+   Aşağıdaki bilgileri girin:
+   - `TELEGRAM_BOT_TOKEN`: BotFather'dan aldığınız token
    - `ADMIN_IDS`: Admin yetkisi verilecek kullanıcıların ID'leri
-   - `CRYPTO_WALLETS`: Ödeme alınacak cüzdan adresleriniz
+   - `CRYPTOMUS_MERCHANT_ID`: Cryptomus Merchant UUID
+   - `CRYPTOMUS_PAYMENT_API_KEY`: Cryptomus Payment API Key
+   - `MYSQL_*`: MySQL bağlantı bilgileri
+
+6. **Webhook URL'ini yapılandırın:**
+   `telegram_bot.py` içinde webhook URL'ini güncelleyin:
+   ```python
+   webhook_url = "https://your-domain.com/webhook/cryptomus"
+   ```
+
+7. **Servisleri başlatın:**
+   
+   **Terminal 1 - Webhook Handler:**
+   ```bash
+   python webhook_handler.py
+   ```
+   
+   **Terminal 2 - Telegram Bot:**
+   ```bash
+   python telegram_bot.py
+   ```
+
+## 📖 Cryptomus Entegrasyonu
+
+Detaylı Cryptomus entegrasyon rehberi için: **[CRYPTOMUS_INTEGRATION.md](CRYPTOMUS_INTEGRATION.md)**
+
+### Desteklenen Kripto Paralar
+
+- **Bitcoin (BTC)** - Bitcoin network
+- **Ethereum (ETH)** - Ethereum network  
+- **USDT** - Tether on Tron (TRC-20)
+
+### Ödeme Akışı
+
+1. Kullanıcı ödeme oluşturur
+2. Cryptomus ödeme linki sağlar
+3. Kullanıcı kripto ile ödeme yapar
+4. Webhook otomatik olarak bildirim alır
+5. Bakiye güncellenir
+6. Telegram bildirimi gönderilir
 
 4. **Görselleri ekleyin (isteğe bağlı):**
    Picture kartlar için görsel eklemek istiyorsanız:
@@ -67,14 +138,26 @@ Bu proje, Telegram üzerinden otomatik olarak **MC (Mastercard) ve Visa Gift Car
 ### Kullanıcılar İçin
 
 1. **Başlangıç:** `/start` komutu ile botu başlatın
-2. **Bakiye Yükle:** Minimum $20 bakiye yükleyin
-3. **Kart Seç:** MC veya Visa, numerik veya resimli seçin
-4. **Adet Gir:** Kaç adet kart almak istediğinizi belirtin
-5. **Satın Al:** Onaylayın ve kart bilgilerinizi alın
+2. **Ödeme Oluştur:** "💰 Create Payment" butonuna tıklayın
+3. **Kripto Seç:** Bitcoin, Ethereum veya USDT seçin
+4. **Miktar Gir:** Minimum $20 (maksimum $10,000)
+5. **Ödeme Yap:** Cryptomus ödeme sayfasına yönlendirilirsiniz
+6. **Onay Bekle:** Ödeme onaylandığında otomatik bildirim alırsınız
+7. **Kart Al:** Bakiyeniz yüklendikten sonra kart satın alabilirsiniz
+
+### Telegram Bot Komutları
+
+**Kullanıcı Komutları:**
+- `/start` - Botu başlat
+- `/payment_history` - Ödeme geçmişinizi görüntüleyin
+
+**Admin Komutları:**
+- `/admin_payments [sayfa]` - Tüm ödemeleri listele
+- `/payment_stats` - Ödeme istatistiklerini görüntüle
 
 ### Admin Komutları
 
-Admin paneline erişmek için config.py'de ADMIN_IDS listesinde olmalısınız.
+Admin paneline erişmek için `.env` dosyasında `ADMIN_IDS` listesinde olmalısınız.
 
 #### CLI Komutları (admin.py)
 
@@ -100,6 +183,17 @@ python admin.py addbalance 123456789 100.50
 # Tüm kullanıcıları listele
 python admin.py users
 ```
+
+## 🆕 Versiyon 3.1 - Cryptomus Integration
+
+### Yeni Özellikler
+
+- ✅ **Cryptomus Entegrasyonu:** PayPal yerine kripto para ödeme desteği
+- ✅ **MySQL Veritabanı:** Kalıcı ödeme kayıtları
+- ✅ **Otomatik Webhook:** Ödeme durumu otomatik güncellenir
+- ✅ **Telegram Bildirimleri:** Ödeme onayı anında bildirilir
+- ✅ **Admin Ödeme Paneli:** Tüm ödemeleri görüntüleme ve yönetme
+- ✅ **Güvenli Konfigürasyon:** Tüm API anahtarları ENV değişkenlerinde
 
 ## 🆕 Versiyon 3.0 Değişiklikleri
 
@@ -137,31 +231,51 @@ python admin.py users
 
 ```
 telegramsatisbotu/
-├── telegram_bot.py          # Ana bot uygulaması
-├── database.py              # Veritabanı ve kart yönetimi
-├── config.py                # Konfigürasyon ayarları
-├── translations.py          # Türkçe/İngilizce çeviriler
-├── admin.py                 # Admin CLI araçları
-├── giftcards/              # Gift card görselleri
-│   ├── README.md           # Görsel isimlendirme kılavuzu
-│   ├── mc1front.jpg        # Örnek MC ön yüz
-│   ├── mc1back.jpg         # Örnek MC arka yüz
-│   ├── visa1front.jpg      # Örnek Visa ön yüz
-│   └── visa1back.jpg       # Örnek Visa arka yüz
-├── requirements.txt         # Python bağımlılıkları
-└── README.md               # Bu dosya
+├── telegram_bot.py              # Ana bot uygulaması
+├── webhook_handler.py           # Cryptomus webhook server (Flask)
+├── cryptomus_payment.py         # Cryptomus API client
+├── cryptomus_service.py         # Üst seviye ödeme servisi
+├── mysql_payment_db.py          # MySQL veritabanı handler
+├── database.py                  # JSON veritabanı (gift cards)
+├── payment_handler.py           # Legacy payment handler
+├── config.py                    # Konfigürasyon (ENV yükleme)
+├── .env                         # Gizli anahtarlar (GIT'e eklenmez!)
+├── .env.example                 # ENV şablon dosyası
+├── translations.py              # Türkçe/İngilizce çeviriler
+├── admin.py                     # Admin CLI araçları
+├── giftcards/                   # Gift card görselleri
+│   ├── README.md               # Görsel isimlendirme kılavuzu
+│   ├── mc1front.jpg            # Örnek MC ön yüz
+│   ├── mc1back.jpg             # Örnek MC arka yüz
+│   ├── visa1front.jpg          # Örnek Visa ön yüz
+│   └── visa1back.jpg           # Örnek Visa arka yüz
+├── requirements.txt             # Python bağımlılıkları
+├── README.md                    # Bu dosya
+└── CRYPTOMUS_INTEGRATION.md     # Detaylı entegrasyon rehberi
 ```
 
 ## 🔒 Güvenlik Notları
 
-- **Üretim için:** `database.py` dosyasındaki `random` modülü yerine `secrets` modülü kullanın
-- **Bot Token:** config.py dosyasını asla paylaşmayın
-- **Admin IDs:** Sadece güvendiğiniz kişilere admin yetkisi verin
-- **Bakiye:** Gerçek para işlemleri için ödeme gateway entegrasyonu gereklidir
+### Genel Güvenlik
+- **API Anahtarları:** Tüm API anahtarları `.env` dosyasında saklanır ve asla kod içine yazılmaz
+- **`.env` Dosyası:** `.gitignore` ile Git'e eklenmez, paylaşılmaz
+- **Webhook İmzalama:** Cryptomus webhook'ları HMAC-MD5 ile doğrulanır
+- **HTTPS Zorunlu:** Webhook endpoint'leri HTTPS ile çalışmalıdır
+- **MySQL Şifreleri:** Güçlü şifreler kullanın
+- **Admin Yetkileri:** Sadece güvendiğiniz kişilere admin yetkisi verin
+
+### Üretim İçin Öneriler
+- **Secrets Modülü:** `database.py` içinde `random` yerine `secrets` modülü kullanın
+- **Rate Limiting:** Webhook endpoint'lerine rate limiting ekleyin
+- **IP Whitelisting:** Cryptomus IP'lerini whitelist'e ekleyin
+- **Monitoring:** Ödeme ve sistem loglarını düzenli kontrol edin
+- **Backup:** Veritabanı backup'ı düzenli alın
+- **Firewall:** MySQL portunu (3306) sadece localhost'a açın
 
 ## 📖 Dokümantasyon
 
 Daha detaylı bilgi için:
+- [Cryptomus Entegrasyon Rehberi (CRYPTOMUS_INTEGRATION.md)](CRYPTOMUS_INTEGRATION.md)
 - [Hızlı Başlangıç Rehberi (QUICKSTART.md)](QUICKSTART.md)
 - [Geliştirici Detayları (IMPLEMENTATION_DETAILS.md)](IMPLEMENTATION_DETAILS.md)
 
