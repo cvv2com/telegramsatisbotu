@@ -18,9 +18,10 @@ from telegram.ext import (
 )
 from database import GiftCardDB
 from translations import get_text
-from config import BOT_TOKEN, ADMIN_IDS, GIFT_CARD_CONFIG, CRYPTO_WALLETS, PAYMENT_CONFIG
+from config import BOT_TOKEN, ADMIN_IDS, GIFT_CARD_CONFIG, CRYPTOMUS_CONFIG
 from payment_handler import PaymentHandler
 from timeout_handler import TimeoutHandler
+from cryptomus_service import get_payment_service
 import config as app_config
 
 # Enable logging
@@ -33,8 +34,11 @@ logger = logging.getLogger(__name__)
 # Initialize database
 db = GiftCardDB('gift_cards.db.json')
 
-# Initialize payment handler
+# Initialize payment handler (legacy)
 payment_handler = PaymentHandler(db, app_config.__dict__)
+
+# Initialize Cryptomus payment service
+cryptomus_service = get_payment_service()
 
 # Conversation states
 SELECTING_CARD_TYPE, ENTERING_QUANTITY, CONFIRMING_PURCHASE, ENTERING_BALANCE = range(4)
@@ -463,7 +467,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Payment system commands
 
 async def create_payment_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start creating a payment"""
+    """Start creating a payment with Cryptomus"""
     query = update.callback_query
     if query:
         await query.answer()
@@ -471,16 +475,15 @@ async def create_payment_start(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = update.effective_user.id
     lang = db.get_user_language(user_id)
     
-    # Show currency selection
+    # Show currency selection (only supported currencies from Cryptomus)
     text = get_text('select_currency', lang)
     keyboard = []
     
-    for currency in ['BTC', 'ETH', 'USDT', 'LTC']:
-        if currency.lower() in CRYPTO_WALLETS:
-            keyboard.append([InlineKeyboardButton(
-                f"💰 {currency}",
-                callback_data=f'{CURRENCY_PREFIX}{currency.lower()}'
-            )])
+    for currency in CRYPTOMUS_CONFIG['supported_currencies']:
+        keyboard.append([InlineKeyboardButton(
+            f"💰 {currency}",
+            callback_data=f'{CURRENCY_PREFIX}{currency.lower()}'
+        )])
     
     keyboard.append([InlineKeyboardButton(get_text('back', lang), callback_data='back_to_main')])
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -511,7 +514,7 @@ async def currency_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ENTERING_PAYMENT_AMOUNT
 
 async def payment_amount_entered(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle payment amount input"""
+    """Handle payment amount input and create Cryptomus payment"""
     user_id = update.effective_user.id
     lang = db.get_user_language(user_id)
     
@@ -519,64 +522,61 @@ async def payment_amount_entered(update: Update, context: ContextTypes.DEFAULT_T
         amount = float(update.message.text)
         
         # Validate amount
-        min_amount = PAYMENT_CONFIG.get('minimum_payment_usd', 20.0)
-        max_amount = PAYMENT_CONFIG.get('maximum_payment_usd', 10000.0)
+        min_amount = 20.0  # Minimum $20
+        max_amount = 10000.0  # Maximum $10,000
         
         if amount < min_amount or amount > max_amount:
             text = get_text('invalid_payment_amount', lang, min=min_amount, max=max_amount)
             await update.message.reply_text(text, parse_mode='Markdown')
             return ENTERING_PAYMENT_AMOUNT
         
-        currency = context.user_data.get('payment_currency', 'btc')
+        currency = context.user_data.get('payment_currency', 'btc').upper()
         
-        # Get exchange rate from config or use demo values
-        exchange_rates = PAYMENT_CONFIG.get('exchange_rates', {
-            'btc': 42500.0,
-            'eth': 2200.0,
-            'usdt': 1.0,
-            'ltc': 65.0
-        })
+        # Get webhook URL from environment or config
+        import os
+        webhook_url = os.getenv('WEBHOOK_URL', 'https://your-domain.com/webhook/cryptomus')
+        if webhook_url == 'https://your-domain.com/webhook/cryptomus':
+            logger.warning("WEBHOOK_URL not configured in environment variables")
         
-        exchange_rate = exchange_rates.get(currency, 1.0)
+        return_url = "https://t.me/your_bot"  # Optional return URL
         
-        # Create payment
-        success, message, tx_id = payment_handler.create_payment(
+        await update.message.reply_text("⏳ Ödeme oluşturuluyor...", parse_mode='Markdown')
+        
+        success, payment_info, error = cryptomus_service.create_payment(
             user_id=user_id,
-            usd_amount=amount,
-            currency=currency.upper(),
-            exchange_rate=exchange_rate
+            amount=amount,
+            currency=currency,
+            webhook_url=webhook_url,
+            return_url=return_url
         )
         
         if not success:
-            text = get_text('payment_creation_error', lang, error=message)
+            text = f"❌ Ödeme oluşturulamadı: {error}\n\nLütfen tekrar deneyin."
             await update.message.reply_text(text, parse_mode='Markdown')
             return ConversationHandler.END
         
-        # Get payment instructions
-        instructions = payment_handler.get_payment_instructions(tx_id, lang)
+        # Format payment instructions
+        network_text = f" ({payment_info['network']})" if payment_info.get('network') else ""
         
-        if instructions:
-            text = get_text('payment_instructions', lang,
-                          usd=instructions['usd_amount'],
-                          crypto=instructions['crypto_amount_formatted'],
-                          currency=instructions['currency'],
-                          wallet=instructions['wallet_address'],
-                          timeout=instructions['timeout_minutes'],
-                          network=instructions['network_name'],
-                          confirmations=instructions['required_confirmations'])
-            
-            text += f"\n\n{get_text('payment_created', lang, tx_id=tx_id)}"
-            text += f"\n\n{get_text('enter_tx_hash', lang)}"
-            
-            # Store transaction ID for later
-            context.user_data['current_payment_tx_id'] = tx_id
-            
-            await update.message.reply_text(text, parse_mode='Markdown')
-            return ENTERING_TX_HASH
-        else:
-            text = get_text('error_getting_instructions', lang)
-            await update.message.reply_text(text, parse_mode='Markdown')
-            return ConversationHandler.END
+        text = (
+            f"✅ *Ödeme Oluşturuldu!*\n\n"
+            f"💰 Miktar: ${amount:.2f}\n"
+            f"💳 Para Birimi: {currency}{network_text}\n"
+            f"📝 Sipariş No: `{payment_info['order_id']}`\n\n"
+            f"🔗 Ödeme yapmak için aşağıdaki linke tıklayın:\n"
+            f"[Ödeme Yap]({payment_info['payment_url']})\n\n"
+            f"⏰ Ödeme süresi: 60 dakika\n"
+            f"✅ Ödeme onaylandığında otomatik bildirim alacaksınız.\n\n"
+            f"💡 Ödeme tamamlandıktan sonra bakiyeniz otomatik olarak güncellenecektir."
+        )
+        
+        # Add back to main menu button
+        keyboard = [[InlineKeyboardButton("🏠 Ana Menü", callback_data='back_to_main')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+        
+        return ConversationHandler.END
         
     except ValueError:
         text = get_text('invalid_amount', lang)
@@ -799,6 +799,91 @@ async def admin_payment_stats(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text(text, parse_mode='Markdown')
 
 
+async def payment_history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View user's payment history with Cryptomus"""
+    user_id = update.effective_user.id
+    lang = db.get_user_language(user_id)
+    
+    # Get user's payments from Cryptomus service
+    payments = cryptomus_service.get_user_payments(user_id, limit=10)
+    
+    if not payments:
+        text = "📝 **Ödeme Geçmişi**\n\nHenüz ödeme kaydı bulunamadı."
+        await update.message.reply_text(text, parse_mode='Markdown')
+        return
+    
+    text = "📝 **Ödeme Geçmişi** (Son 10 Ödeme)\n\n"
+    
+    for payment in payments:
+        status_emoji = {
+            'pending': '⏳',
+            'paid': '✅',
+            'paid_over': '✅',
+            'fail': '❌',
+            'cancel': '❌',
+        }.get(payment['status'], '❓')
+        
+        text += f"{status_emoji} **${payment['amount']:.2f}** ({payment['currency']})\n"
+        text += f"   Sipariş: `{payment['order_id']}`\n"
+        text += f"   Durum: {payment['status']}\n"
+        text += f"   Tarih: {payment['created_at'][:19]}\n\n"
+    
+    await update.message.reply_text(text, parse_mode='Markdown')
+
+
+async def admin_payment_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin: View all payments history"""
+    user_id = update.effective_user.id
+    
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("❌ Bu komutu kullanma yetkiniz yok.")
+        return
+    
+    # Get page number from args
+    page = 1
+    if context.args:
+        try:
+            page = int(context.args[0])
+        except ValueError:
+            pass
+    
+    limit = 20
+    offset = (page - 1) * limit
+    
+    # Get all payments from MySQL
+    from mysql_payment_db import MySQLPaymentDB
+    from config import MYSQL_CONFIG
+    
+    mysql_db = MySQLPaymentDB(MYSQL_CONFIG)
+    payments = mysql_db.get_all_payments(limit=limit, offset=offset)
+    
+    if not payments:
+        text = "📊 **Tüm Ödemeler**\n\nÖdeme kaydı bulunamadı."
+        await update.message.reply_text(text, parse_mode='Markdown')
+        return
+    
+    text = f"📊 **Tüm Ödemeler** (Sayfa {page})\n\n"
+    
+    for payment in payments:
+        status_emoji = {
+            'pending': '⏳',
+            'paid': '✅',
+            'paid_over': '✅',
+            'fail': '❌',
+            'cancel': '❌',
+        }.get(payment['status'], '❓')
+        
+        text += f"{status_emoji} ${payment['amount']:.2f} ({payment['currency']})\n"
+        text += f"   Kullanıcı: {payment['user_id']}\n"
+        text += f"   Sipariş: `{payment['order_id']}`\n"
+        text += f"   Durum: {payment['status']}\n"
+        text += f"   Tarih: {payment['created_at']}\n\n"
+    
+    text += f"\n💡 Sonraki sayfa: `/admin_payments {page + 1}`"
+    
+    await update.message.reply_text(text, parse_mode='Markdown')
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel conversation"""
     context.user_data.clear()
@@ -856,7 +941,6 @@ def main():
         states={
             SELECTING_CURRENCY: [CallbackQueryHandler(currency_selected, pattern=f'^{CURRENCY_PREFIX}')],
             ENTERING_PAYMENT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, payment_amount_entered)],
-            ENTERING_TX_HASH: [MessageHandler(filters.TEXT & ~filters.COMMAND, tx_hash_entered)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
@@ -882,7 +966,8 @@ def main():
     application.add_handler(CommandHandler("pending_payments", admin_pending_payments))
     application.add_handler(CommandHandler("confirm_payment", admin_confirm_payment))
     application.add_handler(CommandHandler("refund_payment", admin_refund_payment))
-    application.add_handler(CommandHandler("admin_payments", admin_payment_stats))
+    application.add_handler(CommandHandler("payment_stats", admin_payment_stats))
+    application.add_handler(CommandHandler("admin_payments", admin_payment_history))
     
     # Start bot
     logger.info("Starting MC/Visa Gift Card Bot with Crypto Payment System...")
